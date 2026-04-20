@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  multimodal_anti_money_laundering:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile
+    container_name: multimodal_anti_money_laundering_app
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    environment:
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8000:8000"

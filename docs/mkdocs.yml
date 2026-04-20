@@ -1,0 +1,21 @@
+site_name: Multimodal Anti Money Laundering
+site_description: "Multimodal AML detection using GNN, DistilBERT, and Bi-LSTM"
+site_author: "Anusooya Thimmarayi Neha, Jaya Prakash Yadav Gorla, Preshita Soni, Rajani Meka"
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Getting Started: getting_started.md
+  - API Reference: api.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - toc
