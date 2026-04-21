@@ -4,7 +4,7 @@ Multimodal AML detection using GNN, DistilBERT, and Bi-LSTM
 
 ## Team Information
 
-- **Project Lead:** Anusooya Thimmarayi Neha, Jaya Prakash Yadav Gorla, Preshita Soni, Rajani Meka (nanusooy@depaul.edu, jgorla@depaul.edu, psoni7@depaul.edu, rmeka1@depaul.edu)
+- **Project Lead:** Jaya Prakash Yadav Gorla, Neha Anusooya Thimmarayi, Preshita Soni, Rajani Meka (jgorla@depaul.edu, nanusooy@depaul.edu, psoni7@depaul.edu, rmeka1@depaul.edu)
 - **Team Members:** *To be filled in*
 
 ## Project Overview
