@@ -132,6 +132,7 @@ data/processed/*
 models/*.pt
 models/*.pkl
 models/*.h5
+models/*.joblib
 !models/.gitkeep
 
 # IDEs

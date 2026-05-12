@@ -7,21 +7,45 @@ name = "multimodal_anti_money_laundering"
 version = "0.1.0"
 description = "Multimodal AML detection using GNN, DistilBERT, and Bi-LSTM"
 authors = [
-    {name = "Anusooya Thimmarayi Neha, Jaya Prakash Yadav Gorla, Preshita Soni, Rajani Meka", email = "nanusooy@depaul.edu, jgorla@depaul.edu, psoni7@depaul.edu, rmeka1@depaul.edu"}
+    {name = "Anusooya Thimmarayi Neha", email = "nanusooy@depaul.edu"},
+    {name = "Jaya Prakash Yadav Gorla", email = "jgorla@depaul.edu"},
+    {name = "Preshita Soni", email = "psoni7@depaul.edu"},
+    {name = "Rajani Meka", email = "rmeka1@depaul.edu"},
 ]
 requires-python = ">=3.11"
 license = {text = "MIT"}
 dependencies = [
+    # Core
     "numpy>=1.26.0",
     "pandas>=2.2.0",
+    "scipy>=1.13.0",
     "scikit-learn>=1.5.0",
     "joblib>=1.4.0",
     "matplotlib>=3.9.0",
+    "seaborn>=0.13.0",
     "tqdm>=4.66.0",
     "pyyaml>=6.0",
+    # Deep learning
     "torch>=2.3.0",
+    "torch-geometric>=2.5.0",
+    # NLP
+    "transformers>=4.40.0",
+    "tokenizers>=0.19.0",
+    # Tabular baseline
+    "xgboost>=2.0.0",
+    "imbalanced-learn>=0.12.0",
+    # Explainability
+    "shap>=0.45.0",
+    # MLOps
     "mlflow>=2.16.0",
     "dvc>=3.55.0",
+    # Serving
+    "bentoml>=1.2.0",
+    "fastapi>=0.111.0",
+    "uvicorn>=0.30.0",
+    # Data quality & drift
+    "great-expectations>=0.18.0",
+    "evidently>=0.4.0",
 ]
 
 [project.optional-dependencies]

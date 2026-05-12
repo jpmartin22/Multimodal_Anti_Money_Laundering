@@ -1,240 +1,221 @@
-# Multimodal Anti Money Laundering
+# Multimodal Anti-Money Laundering (AML) Detection
 
-Multimodal AML detection using GNN, DistilBERT, and Bi-LSTM
+> MLOps Class Project — Team of 4 · DePaul University · 2025
 
-## Team Information
+## Team
 
-- **Project Lead:** Jaya Prakash Yadav Gorla, Neha Anusooya Thimmarayi, Preshita Soni, Rajani Meka (jgorla@depaul.edu, nanusooy@depaul.edu, psoni7@depaul.edu, rmeka1@depaul.edu)
-- **Team Members:** *To be filled in*
+| Name | Email | Role |
+|---|---|---|
+| Anusooya Thimmarayi Neha | nanusooy@depaul.edu | Member B — DistilBERT · BiLSTM · demo |
+| Jaya Prakash Yadav Gorla | jgorla@depaul.edu | Member A — GraphSAGE · Fusion · SHAP |
+| Preshita Soni | psoni7@depaul.edu | Member C — CI/CD · MLflow · data quality |
+| Rajani Meka | rmeka1@depaul.edu | Member D — Docker · SageMaker · monitoring |
 
-## Project Overview
+---
 
-Multimodal Anti Money Laundering is a machine learning project that implements Multimodal AML detection using GNN, DistilBERT, and Bi-LSTM.
+## Project Description
 
-**Key Objectives:**
-- [ ] Objective 1
-- [ ] Objective 2
-- [ ] Objective 3
+Money laundering costs the global economy an estimated $800 billion to $2 trillion annually (UNODC, 2023). Traditional rule-based AML systems generate false-positive alert rates as high as 95%, overwhelming compliance teams while sophisticated laundering schemes slip through undetected. The core limitation is that these systems examine transactions in isolation — they cannot jointly exploit the complementary signals carried by transaction graph topology, temporal behavioral patterns, and payment description text.
 
-## Architecture Diagram
+This project builds a **multimodal ML system** that fuses all three signal types into a single late-fusion neural network and wraps it in a complete MLOps lifecycle. Three specialized encoders process each modality independently:
 
+- **GraphSAGE** (PyTorch Geometric) encodes transaction graph structure. The inductive sampling design allows the model to generalize to new accounts at inference time without retraining — a hard requirement for production AML systems encountering thousands of new accounts daily.
+- **DistilBERT** (HuggingFace Transformers) fine-tuned on synthetic payment memo text captures domain-specific language patterns: round-number amounts, vague counterparty descriptions, and high-frequency transfer language that correlate with suspicious activity.
+- **Bidirectional LSTM** encodes 30-day rolling behavioral windows per account, capturing temporal signals such as velocity spikes, unusual transaction hours, and rapid fund cycling.
+
+The three 128/64/64-dimensional embeddings are concatenated and passed through a shared MLP fusion head (256 → 128 → 64 → 1) with Platt calibration, producing a risk score in [0, 1]. SHAP force plots are generated per prediction to satisfy regulatory explainability requirements under Basel IV and FinCEN guidance.
+
+The MLOps stack wraps the models in a production-grade pipeline: DVC versions all data and model artifacts, MLflow tracks every experiment run, GitHub Actions runs lint → tests → data schema checks → AUC-PR evaluation gate → Docker build → SageMaker deploy on every PR, and Evidently AI generates daily drift reports per modality. The full system targets ≥ 0.80 AUC-PR with < 200 ms P95 inference latency on live transaction streams.
+
+---
+
+## Architecture
+
+```mermaid
+graph TB
+    subgraph Inputs
+        A[(Elliptic Bitcoin\n203K txns · 166 feats)]
+        B[(PaySim\n6.3M mobile txns)]
+        C[(Synthetic Memos\n~50K descriptions)]
+    end
+
+    subgraph Encoders
+        D["GraphSAGE (PyG)\n2-layer · 128-dim\nFocal loss"]
+        E["BiLSTM\n2-layer · 64-dim\n30-day windows"]
+        F["DistilBERT\n64-dim CLS proj\nFine-tuned 3 epochs"]
+    end
+
+    subgraph Fusion
+        G["Late-Fusion MLP\n256 → 128 → 64 → 1\nDropout 0.3 · ReLU"]
+        H[Platt Calibration]
+    end
+
+    subgraph MLOps
+        I[MLflow Tracking]
+        J[DVC Versioning]
+        K[GitHub Actions CI/CD]
+        L[Evidently Drift Monitor]
+    end
+
+    A --> D
+    B --> E
+    C --> F
+    D --> G
+    E --> G
+    F --> G
+    G --> H
+    H --> M["AML Risk Score ∈ [0,1]\nSHAP Explainability"]
+
+    G -.-> I
+    A -.-> J
+    K -.-> G
+    H -.-> L
 ```
-[Placeholder for architecture diagram]
 
-Insert your system architecture diagram here, showing data flow, components,
-and interactions between different parts of the system.
-```
+---
+
+## Success Metrics
+
+| Metric | Target | Rationale |
+|---|---|---|
+| AUC-PR (primary) | ≥ 0.80 | Robust to ~2% illicit class imbalance |
+| Precision @ Recall = 0.8 | ≥ 0.70 | Regulatory: catch 80% of fraud cases |
+| False positive rate | ≤ 5% | Compliance teams cannot review more than 5% of volume |
+| Inference latency (P95) | < 200 ms | Real-time transaction screening SLA |
+| Fusion > each branch alone | Required | Validates multimodal fusion adds value |
+
+See [REPORT.md](REPORT.md) for current model results.
+
+---
 
 ## Phase Deliverables
 
-### Phase 1: Project Design & Model Development
-- See [PHASE1.md](PHASE1.md) for detailed checklist
+| Phase | Focus | Checklist |
+|---|---|---|
+| Phase 1 | Project Design & Model Development | [PHASE1.md](PHASE1.md) |
+| Phase 2 | Containerization & Monitoring | [PHASE2.md](PHASE2.md) |
+| Phase 3 | CI/CD & Deployment | [PHASE3.md](PHASE3.md) |
 
-### Phase 2: Containerization & Monitoring
-- See [PHASE2.md](PHASE2.md) for detailed checklist
+---
 
-### Phase 3: CI/CD & Deployment
-- See [PHASE3.md](PHASE3.md) for detailed checklist
-
-## Setup Instructions
+## Setup
 
 ### Prerequisites
-- Python 3.11+ installed
-- Git installed
-- (Optional) Docker and Docker Compose
+- Python 3.11+
+- Git
 
-### Installation
+### Install
 
-**Option 1: Using uv (recommended - faster)**
 ```bash
+# Editable install + runtime dependencies
+pip install -e ".[dev]"
+
+# Or using uv (faster)
 pip install uv
-uv pip install -r requirements.txt
+uv pip install -e ".[dev]"
 ```
 
-**Option 2: Using pip**
+### PyTorch Geometric (extra step)
+
+PyG requires matching your installed CUDA or CPU-only PyTorch:
+
 ```bash
-pip install -U pip
-pip install -r requirements.txt
+# CPU-only
+pip install torch-geometric
+
+# CUDA 12.x
+pip install torch-geometric
+pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.3.0+cu121.html
 ```
 
-### Development Setup
+### Development hooks
 
 ```bash
-# Install development dependencies
-pip install -r requirements_dev.txt
-
-# Set up pre-commit hooks
 pre-commit install
-
-# Run tests to verify setup
-pytest tests/
 ```
 
-### Running the Pipeline
+### Run the pipeline
 
 ```bash
-# Prepare data
-make data
-
-# Train the model
-make train
-
-# Generate predictions
-make predict
-
-# See all available commands
-make help
+make data      # Process raw data (expects data/raw/elliptic/ and data/raw/paysim/)
+make train     # Train baseline; logs to MLflow
+make test      # Run test suite
+make lint      # Ruff + mypy
 ```
+
+---
 
 ## Technology Stack
 
-### Core Dependencies
-- **numpy** >= 1.26.0 - Numerical computing
-- **pandas** >= 2.2.0 - Data manipulation
-- **scikit-learn** >= 1.5.0 - Machine learning algorithms
-- **matplotlib** >= 3.9.0 - Visualization
-- **tqdm** >= 4.66.0 - Progress bars
-- **pyyaml** >= 6.0 - Configuration files
-### Deep Learning (PyTorch)
-- **torch** >= 2.3.0 - PyTorch framework
-### Experiment Tracking
-- **mlflow** >= 2.16.0 - MLflow experiment tracking
-### Data Version Control
-- **dvc** >= 3.55.0 - Data Version Control
+| Library | Version | Role |
+|---|---|---|
+| PyTorch | ≥ 2.3 | Core deep learning framework |
+| PyTorch Geometric | ≥ 2.5 | GraphSAGE transaction graph encoder |
+| HuggingFace Transformers | ≥ 4.40 | DistilBERT payment memo encoder |
+| XGBoost | ≥ 2.0 | Tabular baseline (benchmark) |
+| scikit-learn | ≥ 1.5 | Preprocessing, metrics, Platt scaling |
+| imbalanced-learn | ≥ 0.12 | SMOTE oversampling for tabular branch |
+| SHAP | ≥ 0.45 | Per-prediction force plots (regulatory) |
+| MLflow | ≥ 2.16 | Experiment tracking + model registry |
+| DVC | ≥ 3.55 | Data + artifact versioning |
+| Great Expectations | ≥ 0.18 | Data quality gates in CI |
+| Evidently AI | ≥ 0.4 | Production drift monitoring |
+| BentoML | ≥ 1.2 | Inference service + Docker packaging |
 
-### Development Tools
-- **pytest** >= 8.0 - Testing framework
-- **pytest-cov** >= 5.0 - Code coverage
-- **ruff** >= 0.6.0 - Linting and formatting
-- **mypy** >= 1.11 - Static type checking
-- **pre-commit** >= 3.8 - Git hooks framework
+---
 
 ## Project Structure
 
-This template uses the modern **`src/` layout** — the importable package lives in `src/multimodal_anti_money_laundering/`, decoupled from the repository root. That forces `pip install -e .` before imports work, which catches packaging bugs early.
-
 ```
-multimodal_anti_money_laundering/                  # Repository root
-├── src/
-│   └── multimodal_anti_money_laundering/          # Importable Python package
-│       ├── __init__.py                # Version + package metadata
-│       ├── config.py                  # Paths & typed config (PROJECT_ROOT, TrainingConfig, ...)
-│       ├── logging_config.py          # setup_logging() + get_logger()
-│       ├── data/
-│       │   ├── __init__.py
-│       │   ├── loaders.py             # load_raw / load_processed / save_processed
-│       │   └── make_dataset.py        # Raw → processed pipeline CLI
-│       ├── features/
-│       │   ├── __init__.py
-│       │   └── build_features.py      # Feature engineering
-│       ├── models/
-│       │   ├── __init__.py
-│       │   ├── base.py                # BaseModel ABC (fit/predict/save/load)
-│       │   └── model.py               # Concrete Model scaffold
-│       ├── evaluation/
-│       │   ├── __init__.py
-│       │   └── metrics.py             # classification_report, regression_report
-│       ├── visualization/
-│       │   ├── __init__.py
-│       │   └── visualize.py           # Plot helpers
-│       ├── utils/
-│       │   ├── __init__.py
-│       │   ├── io.py                  # JSON helpers
-│       │   └── seed.py                # set_seed for reproducibility
-│       ├── train_model.py             # Training CLI
-│       └── predict_model.py           # Inference CLI
-├── tests/                             # Unit and integration tests
-│   ├── conftest.py
-│   └── test_model.py
+multimodal_anti_money_laundering/
+├── src/multimodal_anti_money_laundering/
+│   ├── config.py                  # Paths, typed configs (GraphSAGEConfig, etc.)
+│   ├── data/
+│   │   ├── elliptic.py            # Elliptic loader → PyG Data + synthetic fallback
+│   │   ├── loaders.py             # Generic CSV loaders
+│   │   └── make_dataset.py        # Raw → processed pipeline CLI
+│   ├── models/
+│   │   ├── baseline.py            # XGBoost baseline on tabular features
+│   │   ├── graphsage.py           # GraphSAGE encoder (Week 2)
+│   │   ├── distilbert_encoder.py  # DistilBERT encoder (Week 2)
+│   │   ├── bilstm.py              # BiLSTM encoder (Week 2)
+│   │   └── fusion.py              # Late-fusion MLP + Platt calibration (Week 3)
+│   ├── evaluation/
+│   │   ├── metrics.py             # AUC-PR, P@R=0.8, FPR, ablation
+│   │   └── shap_explainer.py      # SHAP force plots (Week 3)
+│   ├── visualization/
+│   │   └── eda_elliptic.py        # EDA plots → reports/figures/
+│   ├── train_model.py             # Training CLI (baseline → GraphSAGE → fusion)
+│   └── predict_model.py           # Inference CLI
 ├── data/
-│   ├── raw/                           # Immutable raw data
-│   └── processed/                     # Cleaned, transformed data
-├── models/                            # Trained model artifacts (.joblib)
-├── notebooks/                         # Jupyter notebooks for exploration
-├── reports/
-│   └── figures/                       # Generated analysis and figures
-├── docs/                              # MkDocs documentation
-│   ├── mkdocs.yml
-│   ├── index.md
-│   ├── getting_started.md
-│   └── api.md
-├── dockerfiles/                       # Docker configuration
-│   └── Dockerfile
-├── configs/                           # Hydra configuration (if selected)
-│   └── config.yaml
-├── api/                               # FastAPI service (if selected)
-├── .github/workflows/                 # GitHub Actions CI/CD
-│   └── ci.yml
-├── PHASE1.md                          # Phase 1 deliverables checklist
-├── PHASE2.md                          # Phase 2 deliverables checklist
-├── PHASE3.md                          # Phase 3 deliverables checklist
-├── .pre-commit-config.yaml            # Pre-commit hooks (Ruff, mypy)
-├── Makefile                           # Common commands
-├── docker-compose.yaml                # Docker Compose setup
-├── pyproject.toml                     # Project config & dependencies
-├── requirements.txt                   # Runtime dependencies
-├── requirements_dev.txt               # Development dependencies
-├── LICENSE
-└── README.md
+│   ├── raw/elliptic/              # Download from Kaggle (see data/README.md)
+│   ├── raw/paysim/                # Download from Kaggle
+│   └── processed/                 # DVC-tracked processed artifacts
+├── models/                        # Trained model artifacts
+├── notebooks/                     # EDA and exploration notebooks
+├── reports/figures/               # Generated plots
+├── REPORT.md                      # Baseline metrics and ablation results
+├── PHASE1.md / PHASE2.md / PHASE3.md
+├── .github/workflows/ci.yml       # GitHub Actions pipeline
+├── dockerfiles/Dockerfile
+└── pyproject.toml
 ```
 
-### Why `src/` layout?
-
-| | `src/` layout (this template) | Flat layout |
-|---|---|---|
-| Forces `pip install -e .` before import | ✅ | ❌ |
-| Catches packaging bugs early | ✅ | ❌ |
-| Adopted by | attrs, httpx, pydantic, flask, sqlalchemy | Older data-science templates |
-
-Data and model artifacts are accessed via the constants in `multimodal_anti_money_laundering.config` (`PROJECT_ROOT`, `DATA_DIR`, `MODELS_DIR`, …) rather than relative paths — code is independent of where you invoke it from.
-
-## Common Commands
-
-```bash
-# Install package + runtime dependencies (editable install)
-make install
-
-# Install dev tools + pre-commit hooks
-make dev
-
-# Run linting and formatting checks
-make lint
-
-# Auto-format code
-make format
-
-# Run tests
-make test
-
-# Clean up build artifacts
-make clean
-
-# Docker operations
-make docker_build
-make docker_run
-
-# Serve documentation locally
-make docs
-```
-
-## Contribution Summary
-
-- [ ] Team members have been assigned
-- [ ] Development environment has been set up
-- [ ] Initial data exploration completed
-- [ ] Model baseline established
-- [ ] Evaluation metrics defined
-- [ ] Documentation updated
-- [ ] All tests passing
-- [ ] Code reviewed and merged
+---
 
 ## References
 
-- [Project Documentation](docs/index.md)
-- [Phase 1 — Project Design & Model Development](PHASE1.md)
-- [Phase 2 — Containerization & Monitoring](PHASE2.md)
-- [Phase 3 — CI/CD & Deployment](PHASE3.md)
+1. Hamilton et al. (2017). *Inductive representation learning on large graphs.* NeurIPS. — GraphSAGE.
+2. Sanh et al. (2019). *DistilBERT, a distilled version of BERT.* NeurIPS EMC2. — Text encoder.
+3. Weber et al. (2019). *Anti-money laundering in Bitcoin: Experimenting with GCNs.* KDD Workshop. — Elliptic dataset.
+4. Lopez-Rojas et al. (2016). *PaySim: A financial mobile money simulator.* EMSS. — PaySim dataset.
+5. Lin et al. (2017). *Focal loss for dense object detection.* ICCV. — Focal loss for class imbalance.
+6. Lundberg & Lee (2017). *A unified approach to interpreting model predictions.* NeurIPS. — SHAP.
+7. Mitchell et al. (2019). *Model cards for model reporting.* FAccT. — Regulatory documentation standard.
+8. Fey & Lenssen (2019). *Fast graph representation learning with PyTorch Geometric.* ICLR Workshop.
+
+---
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
