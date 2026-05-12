@@ -1,87 +1,124 @@
 # AML Detection — Model Results
 
-> Last updated: Phase 1 (Week 1) · Baseline only · Full multimodal results pending Week 3.
+> Phase 1 complete · XGBoost baseline on real Elliptic data · GraphSAGE pending (Week 2)
+
+---
+
+## Dataset: Elliptic Bitcoin Transaction Graph
+
+| Stat | Value |
+|---|---|
+| Total transactions | 203,769 |
+| Directed edges | 234,355 |
+| Node features | 166 (94 local + 72 aggregated neighborhood) |
+| Time steps | 49 (real blockchain snapshots) |
+| **Labeled** | **46,564 (22.9% of total)** |
+| — Illicit | 4,545 (9.76% of labeled, 2.23% of all) |
+| — Licit | 42,019 (90.24% of labeled) |
+| Unknown | 157,205 (77.1%) — excluded from supervised training |
+
+**Class imbalance note:** Within labeled transactions the illicit rate is 9.76% (licit:illicit ≈ 9.5:1), not 2%. The 2% figure refers to the full dataset including unknowns. `scale_pos_weight = 9.46` was set automatically.
+
+**Train / Val / Test split** (70 / 15 / 15, labeled nodes only, seed=42):
+
+| Split | Samples | Illicit % |
+|---|---|---|
+| Train | 32,594 | 9.56% |
+| Val | 6,984 | 9.95% |
+| Test | 6,986 | 10.51% |
 
 ---
 
 ## Phase 1 Baseline: XGBoost on Elliptic Tabular Features
 
-**Model:** XGBoost classifier on the 166 Elliptic node features (no graph structure, no text, no time-series).  
-**Purpose:** Establishes the benchmark every subsequent model must beat on AUC-PR.
+**Model:** XGBoost classifier on all 166 node features — no graph traversal, no text, no time-series.
 
-### Dataset (Synthetic — for CI; swap with real Elliptic once downloaded)
+### Training Progression (Val AUC-PR)
 
-| Split | Samples | Illicit | Licit | Illicit % |
-|---|---|---|---|---|
-| Train | 7,000 | 143 | 6,857 | 2.04% |
-| Val | 1,500 | 31 | 1,469 | 2.07% |
-| Test | 1,500 | 26 | 1,474 | 1.73% |
-
-> **Note:** Numbers above are from the synthetic fallback (10,000 nodes, 2% illicit, seed=42).  
-> Real Elliptic has 203,769 nodes, 46,564 labeled (4,545 illicit / 42,019 licit).  
-> Run `make train` after placing real CSVs in `data/raw/elliptic/` to regenerate.
-
-### Results
-
-| Metric | Value | Target | Status |
-|---|---|---|---|
-| **AUC-PR** (primary) | **0.1456** (synthetic) / ~0.65–0.72 (real Elliptic, from literature) | ≥ 0.80 | Baseline — below target by design |
-| Precision @ Recall=0.80 | 0.0492 (synthetic) | ≥ 0.70 | Below target |
-| False positive rate @ R=0.80 | 0.3156 (synthetic) | ≤ 0.05 | Below target |
-| F1 (threshold=0.5) | 0.1391 (synthetic) | — | Reference |
-| ROC-AUC | 0.8303 (synthetic) | — | Misleading under 2% imbalance |
-
-**Why the synthetic AUC-PR is low (0.15):** Synthetic data has only a small mean-shift signal (+0.5 on 10/166 features). The real Elliptic dataset has richer graph-derived aggregated features that make the tabular baseline meaningfully predictive (~0.65–0.72 AUC-PR per Weber et al., 2019). The synthetic numbers serve only to confirm the pipeline runs correctly.
-
-### XGBoost Hyperparameters
-
-| Param | Value |
+| Iteration | Val AUC-PR |
 |---|---|
-| n_estimators | 500 (early stopped at 43) |
+| 0 | 0.9101 |
+| 50 | 0.9583 |
+| 100 | 0.9709 |
+| 150 | 0.9778 |
+| 200 | 0.9813 |
+| 250 | 0.9830 |
+| 300 | 0.9841 |
+| 350 | 0.9850 |
+| 400 | 0.9855 |
+| **488 (best)** | **0.9860** |
+
+Early stopping triggered at iteration 488 (patience=30).
+
+### Hyperparameters
+
+| Parameter | Value |
+|---|---|
+| n_estimators (best iter) | 488 |
 | max_depth | 6 |
 | learning_rate | 0.05 |
 | subsample | 0.8 |
 | colsample_bytree | 0.8 |
-| scale_pos_weight | ~48 (auto: n_licit / n_illicit) |
+| scale_pos_weight | 9.46 |
 | eval_metric | aucpr |
+| device | cuda (Colab T4) |
 | seed | 42 |
+
+### Results
+
+| Metric | Val | Test | Target | Status |
+|---|---|---|---|---|
+| **AUC-PR** (primary) | **0.9860** | **0.9891** | ≥ 0.80 | ✅ Exceeds target |
+| Precision @ Recall=0.80 | 0.9982 | 1.0000 | ≥ 0.70 | ✅ Exceeds target |
+| FPR @ Recall=0.80 | 0.0002 | 0.0000 | ≤ 0.05 | ✅ Exceeds target |
+| F1 (threshold=0.5) | 0.9588 | 0.9632 | — | — |
+| ROC-AUC | 0.9961 | 0.9977 | — | — |
+
+### Why the Baseline Is So Strong
+
+The Elliptic feature set includes **72 aggregated neighborhood features** — pre-computed statistics over each node's 1-hop and 2-hop neighbors (counts, sums, means). These implicitly encode graph structure without any GNN. This is why the tabular baseline far exceeds the literature benchmark (~0.65–0.72 AUC-PR reported by Weber et al., 2019, who used only a feature subset).
+
+**Implication for Week 2:** GraphSAGE must beat **AUC-PR = 0.9891** using dynamic inductive neighborhood aggregation. The advantage GraphSAGE will add is:
+- Inductive generalization to **unseen nodes** (new accounts not in training)
+- Deeper multi-hop aggregation beyond the pre-computed 2-hop features
+- End-to-end learned embeddings that the fusion head can exploit jointly with text and time-series
 
 ---
 
 ## Planned Model Comparison (End of Week 3)
 
-| Model | AUC-PR | Precision@R=0.80 | FPR@R=0.80 | Status |
+| Model | AUC-PR | P@R=0.80 | FPR@R=0.80 | Status |
 |---|---|---|---|---|
-| XGBoost (tabular baseline) | ~0.65–0.72 | TBD | TBD | ✅ Implemented |
-| GraphSAGE only (graph) | TBD | TBD | TBD | Week 2 |
-| DistilBERT only (text) | TBD | TBD | TBD | Week 2 |
-| BiLSTM only (time-series) | TBD | TBD | TBD | Week 2 |
-| **Late-fusion (all three)** | **≥ 0.80 target** | **≥ 0.70 target** | **≤ 0.05 target** | Week 3 |
+| **XGBoost tabular baseline** | **0.9891** | **1.0000** | **0.0000** | ✅ Done |
+| GraphSAGE (graph only) | TBD | TBD | TBD | Week 2 |
+| DistilBERT (text only) | TBD | TBD | TBD | Week 2 |
+| BiLSTM (time-series only) | TBD | TBD | TBD | Week 2 |
+| **Late-fusion (all three)** | **> 0.9891 target** | TBD | TBD | Week 3 |
+
+The fusion model target is now to **exceed the XGBoost baseline (0.9891 AUC-PR)**, not just the original proposal target of 0.80.
 
 ---
 
 ## How to Reproduce
 
 ```bash
-# 1. Install dependencies
-pip install -e ".[dev]"
-pip install xgboost scikit-learn numpy pandas
-
-# 2a. Run with synthetic data (no download required)
+# Synthetic data (no download required — CI smoke test)
 python -m multimodal_anti_money_laundering.train_model --model baseline --synthetic
 
-# 2b. Run with real Elliptic data (download first — see data/README.md)
+# Real Elliptic data (download first — see data/README.md)
 python -m multimodal_anti_money_laundering.train_model --model baseline
-
-# Metrics saved to: models/baseline_metrics.json
-# Model saved to:   models/baseline_xgb.joblib
 ```
+
+Full EDA + training notebook: [`notebooks/01_week1_eda_baseline.ipynb`](notebooks/01_week1_eda_baseline.ipynb)
+(Open in Colab → Runtime → T4 GPU → Run all)
+
+Artifacts:
+- `models/baseline_metrics.json` — test metrics
+- `models/baseline_xgb.joblib` — fitted model (gitignored; tracked via DVC)
 
 ---
 
 ## References
 
-- Weber et al. (2019). *Anti-money laundering in Bitcoin.* KDD Workshop.  
-  Reports XGBoost AUC-PR of ~0.65–0.72 on Elliptic with handcrafted features.
-- Hamilton et al. (2017). *Inductive representation learning on large graphs.* NeurIPS.  
-  GraphSAGE achieves ~0.79 AUC-PR on Elliptic (reported in follow-up work).
+- Weber et al. (2019). *Anti-money laundering in Bitcoin.* KDD Workshop. — Elliptic dataset; reports XGBoost AUC-PR ~0.65–0.72 on a feature subset.
+- Hamilton et al. (2017). *Inductive representation learning on large graphs.* NeurIPS. — GraphSAGE (Week 2 target).
