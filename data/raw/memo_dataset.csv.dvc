@@ -1,0 +1,5 @@
+outs:
+- md5: d74f83537164c1e77485216c8f316412
+  size: 3157667
+  hash: md5
+  path: memo_dataset.csv

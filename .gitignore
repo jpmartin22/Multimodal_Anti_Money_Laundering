@@ -124,9 +124,11 @@ dmypy.json
 
 # Data directories
 data/raw/*
+!data/raw/*.dvc
+!data/raw/.gitignore
 data/processed/*
-!data/raw/.gitkeep
-!data/processed/.gitkeep
+!data/processed/*.dvc
+!data/processed/.gitignore
 
 # Models
 models/*.pt
