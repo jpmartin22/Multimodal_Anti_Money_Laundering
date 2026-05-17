@@ -150,4 +150,3 @@ Thumbs.db
 
 # Project specific
 config/local_settings.py
-gdrive-creds.json
