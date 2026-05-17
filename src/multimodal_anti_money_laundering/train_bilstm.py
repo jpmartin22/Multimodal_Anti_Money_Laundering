@@ -45,8 +45,11 @@ import mlflow
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import (average_precision_score, classification_report,
-                              precision_recall_curve)
+from sklearn.metrics import (
+    average_precision_score,
+    classification_report,
+    precision_recall_curve,
+)
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -60,6 +63,7 @@ np.random.seed(SEED)
 # ─────────────────────────────────────────────────────────────────────────────
 # LOGGER SETUP  (Phase 2 — §2 Monitoring & §5 Logging)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def setup_logger(log_file: str = "logs/bilstm_training.log") -> logging.Logger:
     """
@@ -76,8 +80,7 @@ def setup_logger(log_file: str = "logs/bilstm_training.log") -> logging.Logger:
         return logger
 
     fmt_console = logging.Formatter(
-        "%(asctime)s | %(levelname)-8s | %(message)s",
-        datefmt="%H:%M:%S"
+        "%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%H:%M:%S"
     )
     fmt_file = logging.Formatter(
         "%(asctime)s | %(levelname)-8s | %(name)s | %(funcName)s:%(lineno)d | %(message)s"
@@ -106,6 +109,7 @@ logger = setup_logger()
 # MODEL
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class BiLSTMEncoder(nn.Module):
     """
     2-layer Bidirectional LSTM encoder.
@@ -113,37 +117,38 @@ class BiLSTMEncoder(nn.Module):
     Input  : (batch, seq_len=49, n_features=165)
     Output : (batch, embedding_dim=64)  <- embedding for fusion head
     """
+
     def __init__(
         self,
-        input_size:    int = 165,
-        hidden_size:   int = 64,
-        num_layers:    int = 2,
-        dropout:       float = 0.3,
+        input_size: int = 165,
+        hidden_size: int = 64,
+        num_layers: int = 2,
+        dropout: float = 0.3,
         embedding_dim: int = 64,
     ):
         super().__init__()
-        self.hidden_size  = hidden_size
-        self.num_layers   = num_layers
-        self.input_size   = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.input_size = input_size
         self.embedding_dim = embedding_dim
 
         self.lstm = nn.LSTM(
-            input_size    = input_size,
-            hidden_size   = hidden_size,
-            num_layers    = num_layers,
-            batch_first   = True,
-            bidirectional = True,
-            dropout       = dropout if num_layers > 1 else 0.0,
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            bidirectional=True,
+            dropout=dropout if num_layers > 1 else 0.0,
         )
-        self.dropout    = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(dropout)
         self.projection = nn.Linear(hidden_size * 2, embedding_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out, (hn, _) = self.lstm(x)
-        forward_h  = hn[-2]
+        forward_h = hn[-2]
         backward_h = hn[-1]
-        combined   = torch.cat([forward_h, backward_h], dim=1)
-        embedding  = self.projection(self.dropout(combined))
+        combined = torch.cat([forward_h, backward_h], dim=1)
+        embedding = self.projection(self.dropout(combined))
         return embedding
 
 
@@ -152,27 +157,26 @@ class BiLSTMClassifier(nn.Module):
     Full classifier: BiLSTMEncoder + binary classification head.
     The encoder is extracted separately for the fusion head.
     """
-    def __init__(self, input_size: int = 165, hidden_size: int = 64, embedding_dim: int = 64):
+
+    def __init__(
+        self, input_size: int = 165, hidden_size: int = 64, embedding_dim: int = 64
+    ):
         super().__init__()
         self.encoder = BiLSTMEncoder(
-            input_size=input_size,
-            hidden_size=hidden_size,
-            embedding_dim=embedding_dim
+            input_size=input_size, hidden_size=hidden_size, embedding_dim=embedding_dim
         )
-        self.head = nn.Sequential(
-            nn.Linear(embedding_dim, 1),
-            nn.Sigmoid()
-        )
+        self.head = nn.Sequential(nn.Linear(embedding_dim, 1), nn.Sigmoid())
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         embedding = self.encoder(x)
-        logit     = self.head(embedding)
+        logit = self.head(embedding)
         return logit.squeeze(-1), embedding
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SANITY CHECKS  (Phase 2 — §2 Model Assertion Checks)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def run_sanity_checks(X: np.ndarray, y: np.ndarray, expected_features: int = 165):
     """
@@ -184,10 +188,12 @@ def run_sanity_checks(X: np.ndarray, y: np.ndarray, expected_features: int = 165
     # Shape checks
     assert X.ndim == 3, f"Expected 3D array (N, seq, features), got {X.ndim}D"
     assert y.ndim == 1, f"Expected 1D labels array, got {y.ndim}D"
-    assert X.shape[0] == y.shape[0], \
-        f"Mismatch: {X.shape[0]} windows but {y.shape[0]} labels"
-    assert X.shape[2] == expected_features, \
-        f"Expected {expected_features} features, got {X.shape[2]}"
+    assert (
+        X.shape[0] == y.shape[0]
+    ), f"Mismatch: {X.shape[0]} windows but {y.shape[0]} labels"
+    assert (
+        X.shape[2] == expected_features
+    ), f"Expected {expected_features} features, got {X.shape[2]}"
     logger.debug(f"Shape checks passed — X: {X.shape}, y: {y.shape}")
 
     # NaN checks
@@ -199,8 +205,9 @@ def run_sanity_checks(X: np.ndarray, y: np.ndarray, expected_features: int = 165
 
     # Label checks
     unique_labels = np.unique(y)
-    assert set(unique_labels).issubset({0, 1}), \
-        f"Labels must be 0 or 1, found: {unique_labels}"
+    assert set(unique_labels).issubset(
+        {0, 1}
+    ), f"Labels must be 0 or 1, found: {unique_labels}"
     logger.debug(f"Label checks passed — unique labels: {unique_labels}")
 
     # Class balance warning
@@ -208,7 +215,9 @@ def run_sanity_checks(X: np.ndarray, y: np.ndarray, expected_features: int = 165
     if fraud_rate < 0.001:
         logger.warning(f"Very low fraud rate: {fraud_rate*100:.3f}% — consider SMOTE")
     elif fraud_rate > 0.5:
-        logger.warning(f"Unusually high fraud rate: {fraud_rate*100:.1f}% — check labels")
+        logger.warning(
+            f"Unusually high fraud rate: {fraud_rate*100:.1f}% — check labels"
+        )
 
     logger.info(
         f"All sanity checks passed — "
@@ -221,7 +230,8 @@ def run_sanity_checks(X: np.ndarray, y: np.ndarray, expected_features: int = 165
 # DATA LOADING
 # ─────────────────────────────────────────────────────────────────────────────
 
-def load_data(windows_path: str, labels_path: str, max_samples: int = None):
+
+def load_data(windows_path: str, labels_path: str, max_samples: int | None = None):
     logger.info(f"Loading data from {windows_path}")
     t0 = time.time()
 
@@ -239,12 +249,14 @@ def load_data(windows_path: str, labels_path: str, max_samples: int = None):
     if max_samples and max_samples < len(X):
         idx_fraud = np.where(y == 1)[0]
         idx_legit = np.where(y == 0)[0]
-        n_fraud   = min(len(idx_fraud), max(1, int(max_samples * y.mean())))
-        n_legit   = max_samples - n_fraud
-        idx = np.concatenate([
-            np.random.choice(idx_fraud, n_fraud, replace=False),
-            np.random.choice(idx_legit, n_legit, replace=False),
-        ])
+        n_fraud = min(len(idx_fraud), max(1, int(max_samples * y.mean())))
+        n_legit = max_samples - n_fraud
+        idx = np.concatenate(
+            [
+                np.random.choice(idx_fraud, n_fraud, replace=False),
+                np.random.choice(idx_legit, n_legit, replace=False),
+            ]
+        )
         np.random.shuffle(idx)
         X, y = X[idx], y[idx]
         logger.info(f"Subsampled to {max_samples:,} rows (stratified)")
@@ -257,8 +269,8 @@ def load_data(windows_path: str, labels_path: str, max_samples: int = None):
 
 
 def compute_pos_weight(y_train: np.ndarray) -> torch.Tensor:
-    n_neg  = (y_train == 0).sum()
-    n_pos  = (y_train == 1).sum()
+    n_neg = (y_train == 0).sum()
+    n_pos = (y_train == 1).sum()
     weight = n_neg / max(n_pos, 1)
     logger.info(f"Positive class weight: {weight:.1f}x (neg={n_neg:,}, pos={n_pos:,})")
     return torch.tensor([weight], dtype=torch.float32)
@@ -267,6 +279,7 @@ def compute_pos_weight(y_train: np.ndarray) -> torch.Tensor:
 # ─────────────────────────────────────────────────────────────────────────────
 # EVALUATION
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def evaluate(model, loader, device) -> dict:
     model.eval()
@@ -279,9 +292,9 @@ def evaluate(model, loader, device) -> dict:
             all_probs.extend(probs.cpu().numpy())
             all_labels.extend(y_batch.numpy())
 
-    probs  = np.array(all_probs)
+    probs = np.array(all_probs)
     labels = np.array(all_labels)
-    preds  = (probs >= 0.5).astype(int)
+    preds = (probs >= 0.5).astype(int)
 
     # NaN guard on predictions
     if np.isnan(probs).any():
@@ -295,22 +308,23 @@ def evaluate(model, loader, device) -> dict:
     prec_at_r80 = float(precision[::-1][idx]) if idx < len(precision) else 0.0
 
     report = classification_report(labels, preds, output_dict=True, zero_division=0)
-    fpr    = 1 - report.get("0", {}).get("recall", 1.0)
+    fpr = 1 - report.get("0", {}).get("recall", 1.0)
 
     return {
-        "auc_pr":              round(auc_pr, 4),
-        "prec_at_recall_80":   round(prec_at_r80, 4),
-        "f1_fraud":            round(report.get("1", {}).get("f1-score", 0), 4),
-        "recall_fraud":        round(report.get("1", {}).get("recall", 0), 4),
-        "precision_fraud":     round(report.get("1", {}).get("precision", 0), 4),
+        "auc_pr": round(auc_pr, 4),
+        "prec_at_recall_80": round(prec_at_r80, 4),
+        "f1_fraud": round(report.get("1", {}).get("f1-score", 0), 4),
+        "recall_fraud": round(report.get("1", {}).get("recall", 0), 4),
+        "precision_fraud": round(report.get("1", {}).get("precision", 0), 4),
         "false_positive_rate": round(fpr, 4),
-        "accuracy":            round(report.get("accuracy", 0), 4),
+        "accuracy": round(report.get("accuracy", 0), 4),
     }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MAIN TRAINING LOOP
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def train(args):
     train_start = time.time()
@@ -327,29 +341,31 @@ def train(args):
     X_train, X_val, y_train, y_val = train_test_split(
         X_train, y_train, test_size=0.15, stratify=y_train, random_state=SEED
     )
-    logger.info(f"Split — Train: {len(X_train):,} | Val: {len(X_val):,} | Test: {len(X_test):,}")
+    logger.info(
+        f"Split — Train: {len(X_train):,} | Val: {len(X_val):,} | Test: {len(X_test):,}"
+    )
 
     def make_loader(X_arr, y_arr, shuffle=False):
         ds = TensorDataset(
             torch.tensor(X_arr, dtype=torch.float32),
             torch.tensor(y_arr, dtype=torch.float32),
         )
-        return DataLoader(ds, batch_size=args.batch_size, shuffle=shuffle, num_workers=0)
+        return DataLoader(
+            ds, batch_size=args.batch_size, shuffle=shuffle, num_workers=0
+        )
 
     train_loader = make_loader(X_train, y_train, shuffle=True)
-    val_loader   = make_loader(X_val,   y_val)
-    test_loader  = make_loader(X_test,  y_test)
+    val_loader = make_loader(X_val, y_val)
+    test_loader = make_loader(X_test, y_test)
 
     # ── Model ─────────────────────────────────────────────────────────────────
     model = BiLSTMClassifier(
-        input_size=X.shape[2],
-        hidden_size=args.hidden_size,
-        embedding_dim=64
+        input_size=X.shape[2], hidden_size=args.hidden_size, embedding_dim=64
     ).to(device)
 
     pos_weight = compute_pos_weight(y_train).to(device)
-    optimizer  = torch.optim.Adam(model.parameters(), lr=args.lr)
-    scheduler  = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="max", patience=2, factor=0.5
     )
 
@@ -362,28 +378,32 @@ def train(args):
     # ── MLflow ────────────────────────────────────────────────────────────────
     mlflow.set_experiment("aml_bilstm_behavioral")
 
-    with mlflow.start_run(run_name=f"bilstm_lr{args.lr}_h{args.hidden_size}_ep{args.epochs}"):
-        mlflow.log_params({
-            "model":          "BiLSTM",
-            "input_size":     X.shape[2],
-            "hidden_size":    args.hidden_size,
-            "num_layers":     2,
-            "bidirectional":  True,
-            "embedding_dim":  64,
-            "dropout":        0.3,
-            "epochs":         args.epochs,
-            "batch_size":     args.batch_size,
-            "lr":             args.lr,
-            "window_size":    X.shape[1],
-            "n_features":     X.shape[2],
-            "train_rows":     len(X_train),
-            "val_rows":       len(X_val),
-            "test_rows":      len(X_test),
-            "seed":           SEED,
-            "device":         str(device),
-        })
+    with mlflow.start_run(
+        run_name=f"bilstm_lr{args.lr}_h{args.hidden_size}_ep{args.epochs}"
+    ):
+        mlflow.log_params(
+            {
+                "model": "BiLSTM",
+                "input_size": X.shape[2],
+                "hidden_size": args.hidden_size,
+                "num_layers": 2,
+                "bidirectional": True,
+                "embedding_dim": 64,
+                "dropout": 0.3,
+                "epochs": args.epochs,
+                "batch_size": args.batch_size,
+                "lr": args.lr,
+                "window_size": X.shape[1],
+                "n_features": X.shape[2],
+                "train_rows": len(X_train),
+                "val_rows": len(X_val),
+                "test_rows": len(X_test),
+                "seed": SEED,
+                "device": str(device),
+            }
+        )
 
-        best_auc_pr     = 0.0
+        best_auc_pr = 0.0
         best_model_path = os.path.join(args.output_dir, "bilstm_best.pt")
         os.makedirs(args.output_dir, exist_ok=True)
 
@@ -405,23 +425,28 @@ def train(args):
 
                 # NaN guard mid-training
                 if torch.isnan(preds).any():
-                    logger.error(f"NaN in predictions at epoch {epoch}, batch {batch_idx}")
+                    logger.error(
+                        f"NaN in predictions at epoch {epoch}, batch {batch_idx}"
+                    )
                     raise ValueError("NaN detected in model output during training")
 
                 weights = torch.where(
                     y_batch == 1, pos_weight, torch.ones_like(y_batch)
                 )
-                loss = (weights * nn.functional.binary_cross_entropy(
-                    preds, y_batch, reduction="none"
-                )).mean()
+                loss = (
+                    weights
+                    * nn.functional.binary_cross_entropy(
+                        preds, y_batch, reduction="none"
+                    )
+                ).mean()
 
                 loss.backward()
                 nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
                 total_loss += loss.item()
 
-            avg_loss    = total_loss / len(train_loader)
-            epoch_time  = time.time() - epoch_start
+            avg_loss = total_loss / len(train_loader)
+            epoch_time = time.time() - epoch_start
 
             # ── Validate ──────────────────────────────────────────────────────
             val_metrics = evaluate(model, val_loader, device)
@@ -436,11 +461,14 @@ def train(args):
             )
             logger.debug(f"Full val metrics epoch {epoch}: {val_metrics}")
 
-            mlflow.log_metrics({
-                "train_loss":  avg_loss,
-                "epoch_time":  epoch_time,
-                **{f"val_{k}": v for k, v in val_metrics.items()},
-            }, step=epoch)
+            mlflow.log_metrics(
+                {
+                    "train_loss": avg_loss,
+                    "epoch_time": epoch_time,
+                    **{f"val_{k}": v for k, v in val_metrics.items()},
+                },
+                step=epoch,
+            )
 
             if val_metrics["auc_pr"] > best_auc_pr:
                 best_auc_pr = val_metrics["auc_pr"]
@@ -461,9 +489,7 @@ def train(args):
             f"FPR: {test_metrics['false_positive_rate']:.4f}"
         )
 
-        mlflow.log_metrics({
-            f"test_{k}": v for k, v in test_metrics.items()
-        })
+        mlflow.log_metrics({f"test_{k}": v for k, v in test_metrics.items()})
         mlflow.log_metric("total_training_minutes", round(total_time / 60, 2))
 
         # ── Save encoder for fusion head ───────────────────────────────────────
@@ -485,9 +511,13 @@ def train(args):
         # ── Eval gate ─────────────────────────────────────────────────────────
         gate_passed = test_metrics["auc_pr"] >= 0.70
         if gate_passed:
-            logger.info(f"Eval gate PASSED — AUC-PR {test_metrics['auc_pr']:.4f} >= 0.70")
+            logger.info(
+                f"Eval gate PASSED — AUC-PR {test_metrics['auc_pr']:.4f} >= 0.70"
+            )
         else:
-            logger.warning(f"Eval gate FAILED — AUC-PR {test_metrics['auc_pr']:.4f} < 0.70")
+            logger.warning(
+                f"Eval gate FAILED — AUC-PR {test_metrics['auc_pr']:.4f} < 0.70"
+            )
 
     return test_metrics
 
@@ -496,27 +526,44 @@ def train(args):
 # CLI
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Member B — BiLSTM training on Elliptic behavioral sequences."
     )
-    parser.add_argument("--windows",     type=str,   default="data/processed/bilstm_sequences.npy")
-    parser.add_argument("--labels",      type=str,   default="data/processed/bilstm_labels.npy")
-    parser.add_argument("--output_dir",  type=str,   default="models/bilstm")
-    parser.add_argument("--epochs",      type=int,   default=10,
-                        help="Training epochs (default: 10; use 1 for smoke test)")
-    parser.add_argument("--batch_size",  type=int,   default=256)
-    parser.add_argument("--lr",          type=float, default=1e-3,
-                        help="Learning rate (default: 1e-3)")
-    parser.add_argument("--hidden_size", type=int,   default=64,
-                        help="LSTM hidden size (default: 64)")
-    parser.add_argument("--max_samples", type=int,   default=None,
-                        help="Cap dataset size for smoke tests (e.g. 5000)")
+    parser.add_argument(
+        "--windows", type=str, default="data/processed/bilstm_sequences.npy"
+    )
+    parser.add_argument(
+        "--labels", type=str, default="data/processed/bilstm_labels.npy"
+    )
+    parser.add_argument("--output_dir", type=str, default="models/bilstm")
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=10,
+        help="Training epochs (default: 10; use 1 for smoke test)",
+    )
+    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument(
+        "--lr", type=float, default=1e-3, help="Learning rate (default: 1e-3)"
+    )
+    parser.add_argument(
+        "--hidden_size", type=int, default=64, help="LSTM hidden size (default: 64)"
+    )
+    parser.add_argument(
+        "--max_samples",
+        type=int,
+        default=None,
+        help="Cap dataset size for smoke tests (e.g. 5000)",
+    )
     args = parser.parse_args()
 
     logger.info("=" * 55)
     logger.info("BiLSTM Training Started")
-    logger.info(f"Config: lr={args.lr}, hidden={args.hidden_size}, epochs={args.epochs}")
+    logger.info(
+        f"Config: lr={args.lr}, hidden={args.hidden_size}, epochs={args.epochs}"
+    )
     logger.info("=" * 55)
 
     try:

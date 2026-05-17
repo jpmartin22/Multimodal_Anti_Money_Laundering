@@ -24,30 +24,31 @@ import json
 import logging
 import os
 import pstats
+import sys
 import time
 
+sys.path.insert(0, "src/multimodal_anti_money_laundering")
 import numpy as np
 import torch
 import torch.nn as nn
 from memory_profiler import memory_usage
 from torch.utils.data import DataLoader, TensorDataset
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
+from train_bilstm import BiLSTMClassifier
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s"
+)
 logger = logging.getLogger("profiler")
 
 OUTPUT_DIR = "reports/profiling"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# IMPORT MODEL FROM EXISTING SCRIPT
-# ─────────────────────────────────────────────────────────────────────────────
-import sys
-sys.path.insert(0, "src/multimodal_anti_money_laundering")
-from train_bilstm import BiLSTMClassifier, evaluate
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LOAD A SMALL SUBSET FOR PROFILING (fast, representative)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def load_subset(n: int = 5000):
     logger.info(f"Loading {n:,} samples for profiling...")
@@ -56,12 +57,14 @@ def load_subset(n: int = 5000):
 
     idx_fraud = np.where(y == 1)[0]
     idx_legit = np.where(y == 0)[0]
-    n_fraud   = min(len(idx_fraud), int(n * 0.1))
-    n_legit   = n - n_fraud
-    idx = np.concatenate([
-        np.random.choice(idx_fraud, n_fraud, replace=False),
-        np.random.choice(idx_legit, n_legit, replace=False),
-    ])
+    n_fraud = min(len(idx_fraud), int(n * 0.1))
+    n_legit = n - n_fraud
+    idx = np.concatenate(
+        [
+            np.random.choice(idx_fraud, n_fraud, replace=False),
+            np.random.choice(idx_legit, n_legit, replace=False),
+        ]
+    )
     np.random.shuffle(idx)
     logger.info(f"Subset loaded — shape: {X[idx].shape}")
     return X[idx], y[idx]
@@ -71,29 +74,32 @@ def load_subset(n: int = 5000):
 # TRAINING FUNCTION TO PROFILE
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def training_loop(X, y, hidden_size=64, batch_size=256, epochs=3):
     """Minimal training loop used for profiling — 3 epochs, small subset."""
     device = torch.device("cpu")
 
-    ds     = TensorDataset(
-        torch.tensor(X, dtype=torch.float32),
-        torch.tensor(y, dtype=torch.float32)
+    ds = TensorDataset(
+        torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
     )
     loader = DataLoader(ds, batch_size=batch_size, shuffle=True, num_workers=0)
 
-    model      = BiLSTMClassifier(input_size=X.shape[2], hidden_size=hidden_size).to(device)
-    optimizer  = torch.optim.Adam(model.parameters(), lr=1e-3)
-    pos_weight = torch.tensor([(y == 0).sum() / max((y == 1).sum(), 1)], dtype=torch.float32)
+    model = BiLSTMClassifier(input_size=X.shape[2], hidden_size=hidden_size).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    pos_weight = torch.tensor(
+        [(y == 0).sum() / max((y == 1).sum(), 1)], dtype=torch.float32
+    )
 
     model.train()
-    for epoch in range(epochs):
+    for _epoch in range(epochs):
         for X_batch, y_batch in loader:
             optimizer.zero_grad()
             preds, _ = model(X_batch)
-            weights  = torch.where(y_batch == 1, pos_weight, torch.ones_like(y_batch))
-            loss     = (weights * nn.functional.binary_cross_entropy(
-                preds, y_batch, reduction="none"
-            )).mean()
+            weights = torch.where(y_batch == 1, pos_weight, torch.ones_like(y_batch))
+            loss = (
+                weights
+                * nn.functional.binary_cross_entropy(preds, y_batch, reduction="none")
+            ).mean()
             loss.backward()
             optimizer.step()
 
@@ -101,6 +107,7 @@ def training_loop(X, y, hidden_size=64, batch_size=256, epochs=3):
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. cPROFILE
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def run_cprofile(X, y):
     logger.info("Running cProfile...")
@@ -112,13 +119,13 @@ def run_cprofile(X, y):
 
     # Save top 20 functions by cumulative time
     stream = io.StringIO()
-    stats  = pstats.Stats(profiler, stream=stream)
+    stats = pstats.Stats(profiler, stream=stream)
     stats.strip_dirs()
     stats.sort_stats("cumulative")
     stats.print_stats(20)
 
     report = stream.getvalue()
-    path   = os.path.join(OUTPUT_DIR, "bilstm_cprofile.txt")
+    path = os.path.join(OUTPUT_DIR, "bilstm_cprofile.txt")
     with open(path, "w") as f:
         f.write("BiLSTM cProfile Report — Top 20 functions by cumulative time\n")
         f.write("=" * 65 + "\n\n")
@@ -131,7 +138,7 @@ def run_cprofile(X, y):
     print("  TOP 10 SLOWEST FUNCTIONS (cProfile)")
     print("=" * 65)
     stream2 = io.StringIO()
-    stats2  = pstats.Stats(profiler, stream=stream2)
+    stats2 = pstats.Stats(profiler, stream=stream2)
     stats2.strip_dirs()
     stats2.sort_stats("cumulative")
     stats2.print_stats(10)
@@ -144,6 +151,7 @@ def run_cprofile(X, y):
 # 2. MEMORY PROFILING
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def run_memory_profile(X, y):
     logger.info("Running memory profiler...")
 
@@ -154,8 +162,8 @@ def run_memory_profile(X, y):
         retval=False,
     )
 
-    peak_mb  = max(mem_usage)
-    base_mb  = min(mem_usage)
+    peak_mb = max(mem_usage)
+    base_mb = min(mem_usage)
     delta_mb = peak_mb - base_mb
 
     report = (
@@ -175,7 +183,7 @@ def run_memory_profile(X, y):
 
     logger.info(f"Memory profile saved → {path}")
     print(f"\n{'='*45}")
-    print(f"  MEMORY PROFILING RESULTS")
+    print("  MEMORY PROFILING RESULTS")
     print(f"{'='*45}")
     print(f"  Base memory  : {base_mb:.1f} MB")
     print(f"  Peak memory  : {peak_mb:.1f} MB")
@@ -188,6 +196,7 @@ def run_memory_profile(X, y):
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. BEFORE / AFTER BENCHMARK
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def run_benchmark(X, y):
     """
@@ -205,9 +214,9 @@ def run_benchmark(X, y):
     t0 = time.time()
     training_loop(X, y, batch_size=64, epochs=2)
     results["before"] = {
-        "batch_size":   64,
+        "batch_size": 64,
         "time_seconds": round(time.time() - t0, 2),
-        "description":  "Small batch size — more gradient updates, slower per epoch"
+        "description": "Small batch size — more gradient updates, slower per epoch",
     }
 
     # AFTER — larger batch size (more efficient on CPU)
@@ -215,15 +224,19 @@ def run_benchmark(X, y):
     t0 = time.time()
     training_loop(X, y, batch_size=256, epochs=2)
     results["after"] = {
-        "batch_size":   256,
+        "batch_size": 256,
         "time_seconds": round(time.time() - t0, 2),
-        "description":  "Larger batch size — fewer updates, faster per epoch on CPU"
+        "description": "Larger batch size — fewer updates, faster per epoch on CPU",
     }
 
-    speedup = results["before"]["time_seconds"] / max(results["after"]["time_seconds"], 0.01)
-    results["speedup_x"]      = round(speedup, 2)
+    speedup = results["before"]["time_seconds"] / max(
+        results["after"]["time_seconds"], 0.01
+    )
+    results["speedup_x"] = round(speedup, 2)
     results["optimization_1"] = "Increased batch size from 64 → 256"
-    results["optimization_2"] = "torch.no_grad() in evaluation loop — avoids gradient computation"
+    results["optimization_2"] = (
+        "torch.no_grad() in evaluation loop — avoids gradient computation"
+    )
 
     path = os.path.join(OUTPUT_DIR, "bilstm_benchmark.json")
     with open(path, "w") as f:
@@ -231,7 +244,7 @@ def run_benchmark(X, y):
 
     logger.info(f"Benchmark saved → {path}")
     print(f"\n{'='*45}")
-    print(f"  BENCHMARK RESULTS")
+    print("  BENCHMARK RESULTS")
     print(f"{'='*45}")
     print(f"  Before (batch=64)  : {results['before']['time_seconds']}s")
     print(f"  After  (batch=256) : {results['after']['time_seconds']}s")
@@ -244,6 +257,7 @@ def run_benchmark(X, y):
 # ─────────────────────────────────────────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def main():
     logger.info("=" * 55)
@@ -264,7 +278,7 @@ def main():
 
     logger.info("All profiling complete.")
     logger.info(f"Reports saved to: {OUTPUT_DIR}/")
-    print(f"\nFiles generated:")
+    print("\nFiles generated:")
     for f in os.listdir(OUTPUT_DIR):
         path = os.path.join(OUTPUT_DIR, f)
         size = os.path.getsize(path)

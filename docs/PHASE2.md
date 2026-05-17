@@ -40,9 +40,9 @@ This phase focuses on building, training, and validating machine learning models
 *To be filled in during Phase 2*
 
 ### Chosen Model
-- Model Type: 
-- Best Hyperparameters: 
-- Performance Metrics: 
+- Model Type:
+- Best Hyperparameters:
+- Performance Metrics:
 
 ## Key Results
 
@@ -58,7 +58,7 @@ Move to Phase 3 once model is selected and meets performance requirements.
 
 ## Status
 
-- Start Date: 
-- Estimated Completion: 
-- Actual Completion: 
+- Start Date:
+- Estimated Completion:
+- Actual Completion:
 - Status: Not Started

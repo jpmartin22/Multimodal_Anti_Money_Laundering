@@ -27,5 +27,3 @@ BiLSTM cProfile Report — Top 20 functions by cumulative time
        17    0.001    0.000    0.504    0.030 __init__.py:355(<genexpr>)
         7    0.000    0.000    0.471    0.067 inductor_prims.py:14(make_prim)
         7    0.000    0.000    0.471    0.067 __init__.py:266(_make_prim)
-
-

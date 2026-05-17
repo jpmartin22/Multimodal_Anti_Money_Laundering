@@ -30,7 +30,9 @@ logger = get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def train_baseline(synthetic: bool = False, model_dir: Path = MODELS_DIR) -> dict[str, float]:
+def train_baseline(
+    synthetic: bool = False, model_dir: Path = MODELS_DIR
+) -> dict[str, float]:
     """Train XGBoost baseline and return test metrics.
 
     Args:
@@ -42,6 +44,7 @@ def train_baseline(synthetic: bool = False, model_dir: Path = MODELS_DIR) -> dic
     """
     try:
         import mlflow
+
         mlflow_available = True
     except ImportError:
         mlflow_available = False
@@ -54,7 +57,9 @@ def train_baseline(synthetic: bool = False, model_dir: Path = MODELS_DIR) -> dic
     from multimodal_anti_money_laundering.models.baseline import XGBBaseline
 
     logger.info("Loading Elliptic tabular data (synthetic=%s) …", synthetic)
-    X_train, y_train, X_val, y_val, X_test, y_test = load_tabular(use_synthetic=synthetic)
+    X_train, y_train, X_val, y_val, X_test, y_test = load_tabular(
+        use_synthetic=synthetic
+    )
 
     model = XGBBaseline(
         n_estimators=cfg.n_estimators,

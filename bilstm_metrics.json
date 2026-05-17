@@ -1,9 +1,9 @@
 {
-  "auc_pr": 0.9324,
-  "prec_at_recall_80": 0.9613,
+  "auc_pr": 0.9257,
+  "prec_at_recall_80": 0.9698,
   "f1_fraud": 0,
   "recall_fraud": 0,
   "precision_fraud": 0,
   "false_positive_rate": 0.0,
-  "accuracy": 0.9791
+  "accuracy": 0.9708
 }

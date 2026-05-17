@@ -115,7 +115,9 @@ def classification_report(y_true: Any, y_pred: Any) -> dict[str, float]:
     return {
         "accuracy": float(sk_metrics.accuracy_score(y_true, y_pred)),
         "precision": float(
-            sk_metrics.precision_score(y_true, y_pred, average="weighted", zero_division=0)
+            sk_metrics.precision_score(
+                y_true, y_pred, average="weighted", zero_division=0
+            )
         ),
         "recall": float(
             sk_metrics.recall_score(y_true, y_pred, average="weighted", zero_division=0)

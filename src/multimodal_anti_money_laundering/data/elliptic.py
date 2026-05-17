@@ -15,10 +15,10 @@ Download instructions: see data/README.md
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pandas as pd
+import torch_geometric
 from sklearn.preprocessing import StandardScaler
 
 from multimodal_anti_money_laundering.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
@@ -142,7 +142,7 @@ def build_pyg_graph(
     train_frac: float = 0.70,
     val_frac: float = 0.15,
     seed: int = 42,
-) -> "torch_geometric.data.Data":  # type: ignore[name-defined]
+) -> torch_geometric.data.Data:  # type: ignore[name-defined]
     """Build a PyTorch Geometric ``Data`` object from the Elliptic dataframes.
 
     Only labeled nodes (class ∈ {1, 2}) appear in train/val/test masks.
@@ -208,7 +208,10 @@ def build_pyg_graph(
     src_ids = edges_df["txId1"].astype(int).values
     dst_ids = edges_df["txId2"].astype(int).values
     valid = np.array(
-        [s in id_to_idx and d in id_to_idx for s, d in zip(src_ids, dst_ids)]
+        [
+            s in id_to_idx and d in id_to_idx
+            for s, d in zip(src_ids, dst_ids, strict=False)
+        ]
     )
     src_idx = np.array([id_to_idx[int(s)] for s in src_ids[valid]])
     dst_idx = np.array([id_to_idx[int(d)] for d in dst_ids[valid]])
@@ -245,10 +248,10 @@ def build_pyg_graph(
 
 
 def load_or_build_graph(
-    processed_path: Optional[Path] = None,
+    processed_path: Path | None = None,
     force_rebuild: bool = False,
     use_synthetic: bool = False,
-) -> "torch_geometric.data.Data":  # type: ignore[name-defined]
+) -> torch_geometric.data.Data:  # type: ignore[name-defined]
     """Return a cached PyG graph, building it from raw CSVs (or synthetic data) if needed.
 
     Args:
@@ -264,6 +267,7 @@ def load_or_build_graph(
 
     if processed_path.exists() and not force_rebuild and not use_synthetic:
         import torch  # deferred
+
         logger.info("Loading cached graph from %s", processed_path)
         return torch.load(str(processed_path), weights_only=False)
 
@@ -280,6 +284,7 @@ def load_or_build_graph(
 
     processed_path.parent.mkdir(parents=True, exist_ok=True)
     import torch  # deferred
+
     torch.save(data, str(processed_path))
     logger.info("Saved processed graph to %s", processed_path)
     return data
