@@ -150,3 +150,7 @@ Thumbs.db
 
 # Project specific
 config/local_settings.py
+mlflow.db
+mlruns/
+mlflow.db
+mlruns/

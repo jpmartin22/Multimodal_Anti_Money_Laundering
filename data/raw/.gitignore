@@ -1,3 +1,0 @@
-# Open .gitignore and replace those two lines
-sed -i '' 's|data/raw/\*|data/raw/*\n!data/raw/*.dvc\n!data/raw/.gitignore|' .gitignore
-sed -i '' 's|data/processed/\*|data/processed/*\n!data/processed/*.dvc\n!data/processed/.gitignore|' .gitignore

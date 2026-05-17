@@ -30,20 +30,6 @@ data/raw/elliptic/
 
 ---
 
-## PaySim (Time-series branch)
-
-**Source:** https://www.kaggle.com/datasets/ealaxi/paysim1  
-**License:** Open Database License (ODbL)  
-**Size:** ~470 MB compressed
-
-```bash
-kaggle datasets download -d ealaxi/paysim1 -p data/raw/paysim --unzip
-```
-
-Expected file: `data/raw/paysim/PS_20174392719_1491204439457_log.csv`
-
----
-
 ## Synthetic Payment Memo Text (NLP branch)
 
 Generated automatically by the pipeline — no download needed.
