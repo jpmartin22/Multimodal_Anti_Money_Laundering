@@ -1,0 +1,37 @@
+# SageMaker endpoint configuration with 90/10 canary traffic split.
+#
+# How it works:
+#   Primary variant  → stable/previous model, receives 90% of traffic
+#   Canary  variant  → new model candidate,   receives 10% of traffic
+#
+# After canary validates (AUC-PR gate passes + P95 < 200 ms):
+#   Shift Primary weight to 100, delete Canary variant  → full rollout
+#
+# Consumed by deploy/sagemaker_endpoint.py
+
+endpoint_name: aml-scorer-prod
+region: us-east-1
+
+# ECR image URI — set AWS_ACCOUNT_ID env var before running sagemaker_endpoint.py
+# export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+image_uri: "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/aml-scorer:latest"
+canary_image_uri: "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/aml-scorer:canary"
+
+production_variants:
+  - variant_name: Primary
+    model_name: aml-scorer-model-primary
+    initial_instance_count: 1
+    instance_type: ml.m5.xlarge
+    initial_weight: 90
+
+  - variant_name: Canary
+    model_name: aml-scorer-model-canary
+    initial_instance_count: 1
+    instance_type: ml.m5.xlarge
+    initial_weight: 10
+
+# Auto-scaling: scale out when invocations-per-instance exceed threshold
+autoscaling:
+  min_capacity: 1
+  max_capacity: 4
+  target_invocations_per_instance: 100
