@@ -1,0 +1,150 @@
+{
+  "title": "AML Multimodal Model Dashboard",
+  "uid": "aml-model-dashboard",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "AUC-PR by Model Branch",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 4 },
+      "targets": [
+        {
+          "expr": "aml_model_auc_pr",
+          "legendFormat": "{{ branch }}"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "thresholds": {
+          "steps": [
+            { "color": "red",    "value": 0 },
+            { "color": "yellow", "value": 0.7 },
+            { "color": "green",  "value": 0.8 }
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "False Positive Rate by Branch",
+      "type": "stat",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 4 },
+      "targets": [
+        {
+          "expr": "aml_model_fpr",
+          "legendFormat": "{{ branch }}"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "thresholds": {
+          "steps": [
+            { "color": "green",  "value": 0 },
+            { "color": "yellow", "value": 0.03 },
+            { "color": "red",    "value": 0.05 }
+          ]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "F1 Score by Branch",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 4 },
+      "targets": [
+        {
+          "expr": "aml_model_f1",
+          "legendFormat": "{{ branch }}"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "thresholds": {
+          "steps": [
+            { "color": "red",    "value": 0 },
+            { "color": "yellow", "value": 0.7 },
+            { "color": "green",  "value": 0.85 }
+          ]
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "API Prediction Latency (P95)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(aml_api_latency_seconds_bucket[5m]))",
+          "legendFormat": "P95 latency"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(aml_api_latency_seconds_bucket[5m]))",
+          "legendFormat": "P50 latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              { "color": "green",  "value": 0 },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red",    "value": 0.2 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Prediction Request Rate",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "expr": "rate(aml_api_predictions_total[5m])",
+          "legendFormat": "flagged={{ flagged }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Precision vs Recall",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 10, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "expr": "aml_model_precision",
+          "legendFormat": "precision ({{ branch }})"
+        },
+        {
+          "expr": "aml_model_recall",
+          "legendFormat": "recall ({{ branch }})"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Total Predictions (Flagged vs Clean)",
+      "type": "piechart",
+      "gridPos": { "x": 12, "y": 10, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "expr": "aml_api_predictions_total",
+          "legendFormat": "flagged={{ flagged }}"
+        }
+      ]
+    }
+  ]
+}
