@@ -1,0 +1,11 @@
+# Elliptic Bitcoin dataset — preprocessed graph files
+features_path: data/processed/graph_features.npy
+edge_index_path: data/processed/graph_edge_index.npy
+labels_path: data/processed/graph_labels.npy
+
+# Split ratios
+test_size: 0.15
+val_size: 0.15    # fraction of remaining after test split
+
+# Reproducibility
+seed: 42

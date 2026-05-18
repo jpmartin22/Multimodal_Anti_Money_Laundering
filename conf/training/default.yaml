@@ -1,0 +1,14 @@
+# Default training hyperparameters
+lr: 0.001
+epochs: 200
+weight_decay: 1e-5
+grad_clip: 1.0
+eval_every: 20         # evaluate on val set every N epochs
+
+# MLflow
+mlflow_experiment: aml_graphsage_graph
+
+# Output paths
+model_dir: models/graphsage
+metrics_output: graphsage_metrics.json
+log_file: logs/graphsage_training.log
