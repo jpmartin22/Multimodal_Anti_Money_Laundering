@@ -1,0 +1,17 @@
+{
+  "before": {
+    "hidden_channels": 256,
+    "clip_grad": false,
+    "time_seconds": 0.48,
+    "description": "Large hidden dim (256), no gradient clipping"
+  },
+  "after": {
+    "hidden_channels": 128,
+    "clip_grad": true,
+    "time_seconds": 0.25,
+    "description": "Halved hidden dim (128), gradient clipping for stability"
+  },
+  "speedup_x": 1.92,
+  "optimization_1": "Reduced hidden_channels 256 -> 128: halves SAGEConv parameter count and forward/backward pass cost",
+  "optimization_2": "torch.no_grad() in evaluation loop: skips gradient computation during inference, saving memory and time"
+}

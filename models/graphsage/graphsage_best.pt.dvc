@@ -1,0 +1,5 @@
+outs:
+- md5: 06a570dfa344aedbc386e192e6d0e98b
+  size: 239471
+  hash: md5
+  path: graphsage_best.pt

@@ -1,0 +1,31 @@
+GraphSAGE cProfile Report — Top 20 functions by cumulative time
+=================================================================
+
+         152894 function calls (141447 primitive calls) in 0.558 seconds
+
+   Ordered by: cumulative time
+   List reduced from 892 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.002    0.002    0.558    0.558 profile_graphsage.py:113(training_loop)
+    60/10    0.000    0.000    0.246    0.025 module.py:1774(_wrapped_call_impl)
+    60/10    0.001    0.000    0.246    0.025 module.py:1782(_call_impl)
+        5    0.000    0.000    0.235    0.047 train_graphsage.py:162(forward)
+        5    0.000    0.000    0.232    0.046 train_graphsage.py:132(forward)
+        1    0.000    0.000    0.145    0.145 train_graphsage.py:146(__init__)
+        1    0.000    0.000    0.144    0.144 train_graphsage.py:119(__init__)
+        2    0.000    0.000    0.144    0.072 sage_conv.py:66(__init__)
+        2    0.000    0.000    0.132    0.066 message_passing.py:110(__init__)
+        2    0.000    0.000    0.129    0.065 message_passing.py:926(_set_jittable_templates)
+       10    0.010    0.001    0.125    0.012 sage_conv.py:120(forward)
+        1    0.000    0.000    0.124    0.124 template.py:10(module_from_template)
+        5    0.000    0.000    0.107    0.021 _tensor.py:576(backward)
+        5    0.000    0.000    0.107    0.021 __init__.py:253(backward)
+        5    0.000    0.000    0.106    0.021 graph.py:869(_engine_run_backward)
+        5    0.106    0.021    0.106    0.021 {method 'run_backward' of 'torch._C._EngineBase' objects}
+        2    0.000    0.000    0.105    0.053 environment.py:981(get_template)
+        2    0.000    0.000    0.105    0.053 environment.py:956(_load_template)
+        2    0.000    0.000    0.105    0.053 loaders.py:107(load)
+        2    0.000    0.000    0.103    0.052 environment.py:731(compile)
+
+
