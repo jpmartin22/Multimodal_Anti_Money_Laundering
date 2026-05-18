@@ -33,6 +33,17 @@ def health() -> dict[str, str]:
     return {"status": "ok", "model": "stub" if _MODEL is None else "loaded"}
 
 
+# SageMaker requires exactly /ping and /invocations
+@app.get("/ping")
+def ping() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.post("/invocations", response_model=PredictResponse)
+def invocations(request: PredictRequest) -> PredictResponse:
+    return predict(request)
+
+
 @app.post("/predict", response_model=PredictResponse)
 def predict(request: PredictRequest) -> PredictResponse:
     if _MODEL is None:
