@@ -20,7 +20,7 @@ from multimodal_anti_money_laundering.models.base import BaseModel
 class Model(BaseModel):
     """Reference model scaffold."""
 
-    def fit(self, X: Any, y: Any) -> "Model":
+    def fit(self, X: Any, y: Any) -> Model:
         raise NotImplementedError("Implement Model.fit for your task")
 
     def predict(self, X: Any) -> Any:
@@ -31,7 +31,7 @@ class Model(BaseModel):
         joblib.dump(self, path)
 
     @classmethod
-    def load(cls, path: Path) -> "Model":
+    def load(cls, path: Path) -> Model:
         obj = joblib.load(path)
         if not isinstance(obj, cls):
             raise TypeError(f"Expected {cls.__name__}, got {type(obj).__name__}")

@@ -13,3 +13,19 @@ services:
       - PYTHONUNBUFFERED=1
     ports:
       - "8000:8000"
+
+  api:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile
+    container_name: aml_api
+    command: >
+      uvicorn multimodal_anti_money_laundering.serving.api:app
+      --host 0.0.0.0 --port 8000
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    environment:
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8001:8000"

@@ -42,7 +42,7 @@ Move to Phase 2 once data exploration is complete and initial processing pipelin
 
 ## Status
 
-- Start Date: 
-- Estimated Completion: 
-- Actual Completion: 
+- Start Date:
+- Estimated Completion:
+- Actual Completion:
 - Status: Not Started

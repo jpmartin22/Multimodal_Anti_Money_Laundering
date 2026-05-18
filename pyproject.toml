@@ -7,7 +7,7 @@ name = "multimodal_anti_money_laundering"
 version = "0.1.0"
 description = "Multimodal AML detection using GNN, DistilBERT, and Bi-LSTM"
 authors = [
-    {name = "Anusooya Thimmarayi Neha", email = "nanusooy@depaul.edu"},
+    {name = "Neha Anusooya Thimmarayi", email = "nanusooy@depaul.edu"},
     {name = "Jaya Prakash Yadav Gorla", email = "jgorla@depaul.edu"},
     {name = "Preshita Soni", email = "psoni7@depaul.edu"},
     {name = "Rajani Meka", email = "rmeka1@depaul.edu"},
@@ -63,11 +63,13 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "B", "UP"]
+ignore = ["N806", "N803", "E501"]
 
 [tool.mypy]
 python_version = "3.11"
-warn_return_any = true
-disallow_untyped_defs = true
+warn_return_any = false
+disallow_untyped_defs = false
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

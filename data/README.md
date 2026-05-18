@@ -1,14 +1,27 @@
 # Data
 
-All raw datasets live in `data/raw/` and are **not committed to git** (see `.gitignore`).  
+"Hey team — data is now on DVC remote (Google Drive). To pull all datasets and models:
+
+1. Clone the repo (if not done):
+   git clone https://github.com/jpmartin22/Multimodal_Anti_Money_Laundering.git
+
+2. Install DVC:
+   pip install dvc dvc-gdrive --break-system-packages
+
+3. Pull the data:
+   dvc pull
+   (sign in with your Google account when browser opens —
+    your personal email addresses that was shared in the group)"
+
+    All raw datasets live in `data/raw/` and are **not committed to git** (see `.gitignore`).
 Processed artifacts in `data/processed/` are tracked by DVC.
 
 ---
 
 ## Elliptic Bitcoin Dataset (Graph branch)
 
-**Source:** https://www.kaggle.com/datasets/ellipticco/elliptic-data-set  
-**License:** Creative Commons Attribution 4.0  
+**Source:** https://www.kaggle.com/datasets/ellipticco/elliptic-data-set
+**License:** Creative Commons Attribution 4.0
 **Size:** ~25 MB compressed
 
 ### Download (Kaggle CLI)

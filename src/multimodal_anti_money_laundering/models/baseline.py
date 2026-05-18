@@ -57,7 +57,7 @@ class XGBBaseline:
         X_val: np.ndarray | None = None,
         y_val: np.ndarray | None = None,
         early_stopping_rounds: int = 30,
-    ) -> "XGBBaseline":
+    ) -> XGBBaseline:
         """Train XGBoost with automatic class-weight balancing.
 
         Args:
@@ -73,9 +73,7 @@ class XGBBaseline:
         try:
             import xgboost as xgb
         except ImportError as e:
-            raise ImportError(
-                "XGBoost is required: pip install xgboost"
-            ) from e
+            raise ImportError("XGBoost is required: pip install xgboost") from e
 
         n_pos = int(y_train.sum())
         n_neg = len(y_train) - n_pos
@@ -134,7 +132,9 @@ class XGBBaseline:
 
         Returns dict with keys: auc_pr, precision_at_r80, fpr, f1, roc_auc.
         """
-        from multimodal_anti_money_laundering.evaluation.metrics import compute_aml_metrics
+        from multimodal_anti_money_laundering.evaluation.metrics import (
+            compute_aml_metrics,
+        )
 
         proba = self.predict_proba(X)
         return compute_aml_metrics(y, proba)
@@ -150,7 +150,7 @@ class XGBBaseline:
         logger.info("Saved baseline model to %s", path)
 
     @classmethod
-    def load(cls, path: Path) -> "XGBBaseline":
+    def load(cls, path: Path) -> XGBBaseline:
         """Load a previously saved baseline from *path*."""
         obj = joblib.load(path)
         if not isinstance(obj, cls):

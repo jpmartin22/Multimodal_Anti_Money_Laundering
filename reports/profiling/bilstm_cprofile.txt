@@ -1,0 +1,29 @@
+BiLSTM cProfile Report — Top 20 functions by cumulative time
+=================================================================
+
+         1547106 function calls (1523895 primitive calls) in 6.443 seconds
+
+   Ordered by: cumulative time
+   List reduced from 4290 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+    25/15    0.000    0.000    4.681    0.312 _ops.py:291(fallthrough)
+       90    0.001    0.000    2.904    0.032 __init__.py:1(<module>)
+   480/60    0.001    0.000    2.815    0.047 module.py:1735(_wrapped_call_impl)
+   480/60    0.002    0.000    2.815    0.047 module.py:1743(_call_impl)
+       60    0.000    0.000    2.814    0.047 train_bilstm.py:170(forward)
+       60    0.001    0.000    2.810    0.047 train_bilstm.py:146(forward)
+       60    0.001    0.000    2.794    0.047 rnn.py:1042(forward)
+       60    2.788    0.046    2.788    0.046 {built-in method torch.lstm}
+    25/20    0.000    0.000    2.341    0.117 _ops.py:279(py_impl)
+       60    0.000    0.000    2.292    0.038 _tensor.py:570(backward)
+       60    0.000    0.000    2.292    0.038 __init__.py:242(backward)
+       60    0.000    0.000    2.290    0.038 graph.py:814(_engine_run_backward)
+       60    2.290    0.038    2.290    0.038 {method 'run_backward' of 'torch._C._EngineBase' objects}
+        3    0.000    0.000    1.556    0.519 _ops.py:147(py_functionalize_impl)
+        3    0.000    0.000    0.787    0.262 _ops.py:251(__init__)
+        1    0.000    0.000    0.769    0.769 triton_kernel_wrap.py:650(__init__)
+        8    0.000    0.000    0.491    0.061 utils.py:1(<module>)
+       17    0.001    0.000    0.485    0.029 __init__.py:355(<genexpr>)
+        7    0.000    0.000    0.451    0.064 inductor_prims.py:14(make_prim)
+        7    0.000    0.000    0.451    0.064 __init__.py:266(_make_prim)
