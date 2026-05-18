@@ -1,21 +1,21 @@
 BiLSTM Memory Profile Report
 =============================================
-Base memory   : 1228.2 MB
-Peak memory   : 1495.6 MB
-Memory delta  : 267.4 MB
+Base memory   : 1143.6 MB
+Peak memory   : 1262.9 MB
+Memory delta  : 119.4 MB
 Samples taken : 13
 
 Memory over time (MB):
-  t=0.0s : 1495.6 MB
-  t=0.5s : 1228.2 MB
-  t=1.0s : 1228.2 MB
-  t=1.5s : 1228.2 MB
-  t=2.0s : 1228.9 MB
-  t=2.5s : 1228.9 MB
-  t=3.0s : 1228.9 MB
-  t=3.5s : 1228.9 MB
-  t=4.0s : 1228.9 MB
-  t=4.5s : 1229.3 MB
-  t=5.0s : 1229.3 MB
-  t=5.5s : 1229.3 MB
-  t=6.0s : 1229.3 MB
+  t=0.0s : 1262.9 MB
+  t=0.5s : 1143.6 MB
+  t=1.0s : 1145.3 MB
+  t=1.5s : 1145.3 MB
+  t=2.0s : 1145.3 MB
+  t=2.5s : 1145.3 MB
+  t=3.0s : 1145.3 MB
+  t=3.5s : 1145.3 MB
+  t=4.0s : 1145.3 MB
+  t=4.5s : 1145.3 MB
+  t=5.0s : 1145.3 MB
+  t=5.5s : 1145.3 MB
+  t=6.0s : 1145.3 MB
