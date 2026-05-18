@@ -289,12 +289,29 @@ def evaluate(model, loader, device) -> dict:
         for X_batch, y_batch in loader:
             X_batch = X_batch.to(device)
             probs, _ = model(X_batch)
-            all_probs.extend(probs.cpu().numpy())
+            all_probs.extend(probs.cpu().numpy().flatten())
             all_labels.extend(y_batch.numpy())
 
     probs = np.array(all_probs)
     labels = np.array(all_labels)
-    preds = (probs >= 0.5).astype(int)
+
+    # Find optimal threshold using precision-recall curve
+    precision, recall, thresholds = precision_recall_curve(labels, probs)
+    f1_scores = 2 * precision * recall / (precision + recall + 1e-8)
+    best_idx = np.argmax(f1_scores[:-1])
+    best_threshold = 0.3
+
+    # Debug: check actual probability distribution
+    logger.debug(
+        f"Prob stats — min:{probs.min():.4f} max:{probs.max():.4f} "
+        f"mean:{probs.mean():.4f} median:{np.median(probs):.4f}"
+    )
+    logger.debug(
+        f"Best threshold from PR curve: {best_threshold:.4f} "
+        f"gives F1: {f1_scores[best_idx]:.4f}"
+    )
+
+    preds = (probs >= best_threshold).astype(int)
 
     # NaN guard on predictions
     if np.isnan(probs).any():
@@ -303,21 +320,21 @@ def evaluate(model, loader, device) -> dict:
 
     auc_pr = average_precision_score(labels, probs)
 
-    precision, recall, _ = precision_recall_curve(labels, probs)
-    idx = np.searchsorted(recall[::-1], 0.8)
-    prec_at_r80 = float(precision[::-1][idx]) if idx < len(precision) else 0.0
+    precision2, recall2, _ = precision_recall_curve(labels, probs)
+    idx = np.searchsorted(recall2[::-1], 0.8)
+    prec_at_r80 = float(precision2[::-1][idx]) if idx < len(precision2) else 0.0
 
     report = classification_report(labels, preds, output_dict=True, zero_division=0)
-    fpr = 1 - report.get("0", {}).get("recall", 1.0)
 
     return {
         "auc_pr": round(auc_pr, 4),
         "prec_at_recall_80": round(prec_at_r80, 4),
-        "f1_fraud": round(report.get("1", {}).get("f1-score", 0), 4),
-        "recall_fraud": round(report.get("1", {}).get("recall", 0), 4),
-        "precision_fraud": round(report.get("1", {}).get("precision", 0), 4),
-        "false_positive_rate": round(fpr, 4),
+        "f1_fraud": round(report.get("1.0", {}).get("f1-score", 0), 4),
+        "recall_fraud": round(report.get("1.0", {}).get("recall", 0), 4),
+        "precision_fraud": round(report.get("1.0", {}).get("precision", 0), 4),
+        "false_positive_rate": round(1 - report.get("0.0", {}).get("recall", 1.0), 4),
         "accuracy": round(report.get("accuracy", 0), 4),
+        "optimal_threshold": round(best_threshold, 4),
     }
 
 
@@ -479,6 +496,8 @@ def train(args):
         logger.info("Loading best model for final test evaluation...")
         model.load_state_dict(torch.load(best_model_path, weights_only=True))
         test_metrics = evaluate(model, test_loader, device)
+
+        logger.info(f"Optimal threshold: {test_metrics['optimal_threshold']:.4f}")
 
         total_time = time.time() - train_start
         logger.info(f"Training complete in {total_time/60:.1f} minutes")

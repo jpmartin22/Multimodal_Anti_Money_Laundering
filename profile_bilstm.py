@@ -27,13 +27,11 @@ import pstats
 import sys
 import time
 
-sys.path.insert(0, "src/multimodal_anti_money_laundering")
 import numpy as np
 import torch
 import torch.nn as nn
 from memory_profiler import memory_usage
 from torch.utils.data import DataLoader, TensorDataset
-from train_bilstm import BiLSTMClassifier  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s"
@@ -43,6 +41,11 @@ logger = logging.getLogger("profiler")
 OUTPUT_DIR = "reports/profiling"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# IMPORT MODEL FROM EXISTING SCRIPT
+# ─────────────────────────────────────────────────────────────────────────────
+sys.path.insert(0, "src/multimodal_anti_money_laundering")
+from train_bilstm import BiLSTMClassifier  # noqa: E402
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LOAD A SMALL SUBSET FOR PROFILING (fast, representative)

@@ -1,15 +1,15 @@
 {
   "before": {
     "batch_size": 64,
-    "time_seconds": 5.65,
+    "time_seconds": 5.73,
     "description": "Small batch size \u2014 more gradient updates, slower per epoch"
   },
   "after": {
     "batch_size": 256,
-    "time_seconds": 3.48,
+    "time_seconds": 3.52,
     "description": "Larger batch size \u2014 fewer updates, faster per epoch on CPU"
   },
-  "speedup_x": 1.62,
+  "speedup_x": 1.63,
   "optimization_1": "Increased batch size from 64 \u2192 256",
   "optimization_2": "torch.no_grad() in evaluation loop \u2014 avoids gradient computation"
 }
