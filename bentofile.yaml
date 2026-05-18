@@ -1,0 +1,12 @@
+service: "multimodal_anti_money_laundering.serving.bento_service:AMLScoringService"
+
+labels:
+  project: aml-multimodal
+  team: data2deploy
+
+include:
+  - "src/"
+  - "requirements.txt"
+
+python:
+  requirements_txt: requirements.txt
