@@ -1,0 +1,31 @@
+{
+  "val_metrics": {
+    "auc_pr": 0.9318,
+    "prec_at_recall_80": 0.9545,
+    "f1_fraud": 0,
+    "recall_fraud": 0,
+    "precision_fraud": 0,
+    "false_positive_rate": 0.0,
+    "accuracy": 0.9778,
+    "optimal_threshold": 0.8735
+  },
+  "test_metrics": {
+    "auc_pr": 0.9261,
+    "prec_at_recall_80": 0.9398,
+    "f1_fraud": 0,
+    "recall_fraud": 0,
+    "precision_fraud": 0,
+    "false_positive_rate": 0.0,
+    "accuracy": 0.9765,
+    "optimal_threshold": 0.8791
+  },
+  "best_epoch": 200,
+  "training_time_min": 1.53,
+  "hyperparams": {
+    "lr": 0.001,
+    "hidden_dim": 128,
+    "embedding_dim": 64,
+    "dropout": 0.3,
+    "epochs": 200
+  }
+}
