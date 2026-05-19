@@ -7,14 +7,14 @@ Phase 2 focuses on scaling and operationalizing Multimodal Anti Money Laundering
 
 ## 1. Containerization
 
-- [ ] **Dockerfile Creation**: Build Dockerfile for model training and inference
-- [ ] **Base Image Selection**: Choose appropriate base image (python:3.x, nvidia/cuda, etc.)
-- [ ] **Environment Variables**: Define and document required environment variables
-- [ ] **Build Instructions**: Document how to build Docker image with examples
-- [ ] **Run Instructions**: Document how to run container with proper volume/network config
-- [ ] **Container Testing**: Test container locally to ensure consistency with host environment
-- [ ] **Docker Compose (Optional)**: Create docker-compose.yml for multi-service setups
-- [ ] **Environment Consistency**: Verify that containerized training produces identical results to local training
+- [x] **Dockerfile Creation**: Multi-stage `python:3.11-slim` image — `dockerfiles/Dockerfile`
+- [x] **Base Image Selection**: `python:3.11-slim` (builder + runtime stages)
+- [x] **Environment Variables**: Defined in Dockerfile (`MLFLOW_TRACKING_URI`, `AML_THRESHOLD`, `LOG_LEVEL`, etc.); documented in `.env.example`
+- [x] **Build Instructions**: `dockerfiles/README.md` — build examples, custom tags, CI usage
+- [x] **Run Instructions**: `dockerfiles/README.md` — API, training, and debug run modes with volume/network config
+- [x] **Container Testing**: `scripts/test_container.sh` — smoke tests: import check, CLI, `/health`, `/metrics`, `/predict`
+- [x] **Docker Compose**: `docker-compose.yaml` — train, api, prometheus, grafana services with healthchecks and `env_file`
+- [x] **Environment Consistency**: Documented in `dockerfiles/README.md`; verify with `docker run ... pytest tests/`
 
 ---
 
