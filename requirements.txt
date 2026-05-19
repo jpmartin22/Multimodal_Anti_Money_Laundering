@@ -176,7 +176,7 @@ mlflow-tracing==3.12.0
 mpmath==1.3.0
 msgspec==0.21.1
 multidict==6.7.0
--e git+https://github.com/jpmartin22/Multimodal_Anti_Money_Laundering.git@8a1d21f06161c05d2a7d67248b34ea759c476b54#egg=multimodal_anti_money_laundering
+-e git+https://github.com/jpmartin22/Multimodal_Anti_Money_Laundering.git@714ad26e7f7ecd315f317daba9dbc83fe4398785#egg=multimodal_anti_money_laundering
 multipart==1.3.1
 multiprocess==0.70.16
 mypy==2.1.0
