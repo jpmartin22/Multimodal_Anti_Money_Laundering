@@ -1,6 +1,21 @@
 version: '3.8'
 
 services:
+  graphsage-train:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.graphsage
+    container_name: aml_graphsage_train
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./mlruns:/app/mlruns
+    environment:
+      - PYTHONUNBUFFERED=1
+    profiles:
+      - train
+
   multimodal_anti_money_laundering:
     build:
       context: .

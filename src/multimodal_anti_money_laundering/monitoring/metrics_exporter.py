@@ -80,6 +80,7 @@ latency_histogram = Histogram(
 
 _METRICS_FILES = {
     "bilstm":    Path("bilstm_metrics.json"),
+    "graphsage": Path("graphsage_metrics.json"),
     "baseline":  Path("models/baseline_metrics.json"),
 }
 

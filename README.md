@@ -98,6 +98,154 @@ See [REPORT.md](REPORT.md) for current model results.
 
 ---
 
+## Phase 2 Guide — GraphSAGE (Member A)
+
+### GraphSAGE Training
+
+Train the graph encoder with default config (200 epochs, hidden=128):
+
+```bash
+python src/multimodal_anti_money_laundering/train_graphsage.py
+```
+
+With CLI flags:
+
+```bash
+python src/multimodal_anti_money_laundering/train_graphsage.py \
+    --lr 0.001 --hidden_dim 256 --dropout 0.5 --epochs 200
+```
+
+### Configuration Management (Hydra)
+
+All hyperparameters live in `conf/`. Override any value from the command line:
+
+```bash
+# Default config (base model: hidden=128, dropout=0.3)
+python src/multimodal_anti_money_laundering/train_graphsage_hydra.py
+
+# Best model config (hidden=256, dropout=0.5, test AUC-PR=0.9299)
+python src/multimodal_anti_money_laundering/train_graphsage_hydra.py model=graphsage_large
+
+# Smoke test — 5 epochs, 8k-node subsample (CI/CD)
+python src/multimodal_anti_money_laundering/train_graphsage_hydra.py training=fast
+
+# Combine overrides freely
+python src/multimodal_anti_money_laundering/train_graphsage_hydra.py \
+    model=graphsage_large training.lr=0.005 training.epochs=100
+
+# Print resolved config without running
+python src/multimodal_anti_money_laundering/train_graphsage_hydra.py --cfg job
+```
+
+Config file hierarchy:
+
+```
+conf/
+  config.yaml               # entry point — composes defaults
+  model/
+    graphsage_base.yaml     # hidden=128, dropout=0.3
+    graphsage_large.yaml    # hidden=256, dropout=0.5  ← best (AUC-PR 0.9299)
+  data/
+    elliptic.yaml           # data paths + split ratios + seed
+  training/
+    default.yaml            # lr=0.001, epochs=200, grad_clip=1.0
+    fast.yaml               # epochs=5, max_nodes=8000  ← smoke test
+```
+
+### Profiling
+
+Run cProfile + memory_profiler benchmark (before vs. after optimization):
+
+```bash
+python src/multimodal_anti_money_laundering/profile_graphsage.py
+```
+
+Outputs to `reports/profiling/`:
+- `graphsage_cprofile.txt` — top-50 hotspots by cumulative time
+- `graphsage_memory.txt` — line-by-line memory usage
+- `graphsage_benchmark.json` — before/after timing (1.92x speedup)
+
+Key optimization: reducing hidden channels 256→128 and adding gradient clipping cut per-epoch time from 0.69s to 0.36s on 8k nodes.
+
+### Experiment Tracking (MLflow)
+
+Three experiments were run and compared. Start the MLflow UI:
+
+```bash
+mlflow ui --port 5000
+# Open http://localhost:5000 → experiment: aml_graphsage_graph
+```
+
+| Run | lr | hidden | dropout | Val AUC-PR | Test AUC-PR | Time |
+|---|---|---|---|---|---|---|
+| Exp 1 | 0.001 | 128 | 0.3 | 0.9318 | 0.9261 | 1.5 min |
+| Exp 2 | 0.005 | 128 | 0.3 | 0.9342 | 0.9264 | 1.7 min |
+| **Exp 3** ★ | **0.001** | **256** | **0.5** | **0.9331** | **0.9299** | **2.3 min** |
+
+★ Best run selected. Saved to `models/graphsage/graphsage_best.pt` and DVC-tracked.
+
+Full comparison JSON: `reports/graphsage_experiment_comparison.json`
+
+### Logging
+
+Training logs rotate at 5 MB (3 backups) and write to `logs/graphsage_training.log`:
+
+```
+10:23:41 | INFO     | Graph loaded — nodes: 46,564 | edges: 73,248 | fraud: 9.76%
+10:23:41 | INFO     | pos_weight: 9.25x
+10:23:41 | INFO     | Split — Train: 32,594 | Val: 6,984 | Test: 6,986
+10:23:43 | INFO     | Epoch  20/200 | loss: 0.1823 | val AUC-PR: 0.8741 | val F1: 0.0000
+10:23:51 | INFO     | Epoch 100/200 | loss: 0.0912 | val AUC-PR: 0.9215 | val F1: 0.0000
+10:24:01 | INFO     | Epoch 200/200 | loss: 0.0744 | val AUC-PR: 0.9318 | val F1: 0.0000
+```
+
+Assertion checks run before training: NaN detection, shape validation, label range, class imbalance warning.
+
+### Containerization (Docker)
+
+Build the GraphSAGE image:
+
+```bash
+docker build -f dockerfiles/Dockerfile.graphsage -t aml-graphsage:latest .
+```
+
+Run training (mounts local data/models/logs):
+
+```bash
+docker run --rm \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/models:/app/models \
+  -v $(pwd)/logs:/app/logs \
+  -v $(pwd)/mlruns:/app/mlruns \
+  aml-graphsage:latest
+```
+
+With Hydra overrides (all CLI flags pass through to Hydra):
+
+```bash
+docker run --rm \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/models:/app/models \
+  aml-graphsage:latest model=graphsage_large training=fast
+```
+
+Via Docker Compose (uses `train` profile):
+
+```bash
+docker compose --profile train up graphsage-train
+```
+
+Start the full monitoring stack (API + Prometheus + Grafana):
+
+```bash
+docker compose up api prometheus grafana
+# Grafana: http://localhost:3000  (admin / aml_admin)
+# Prometheus: http://localhost:9090
+# API metrics: http://localhost:8001/metrics
+```
+
+---
+
 ## Setup
 
 ### Prerequisites
