@@ -1,0 +1,44 @@
+# Virtual environments — 367MB, never needed inside the image
+venv/
+.venv/
+env/
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+*.egg-info/
+
+# Git
+.git/
+.gitignore
+
+# Data and models — mounted as volumes at runtime
+data/
+models/
+
+# Reports and notebooks
+reports/
+notebooks/
+*.ipynb
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Logs
+logs/
+*.log
+
+# CI and docs
+.github/
+docs/
+
+# Test and dev files
+tests/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage.xml

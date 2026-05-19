@@ -1,0 +1,25 @@
+# Lightweight requirements for the AML inference API Docker image.
+# Only packages needed to run serving/api.py — not the full training stack.
+
+# API
+fastapi==0.136.1
+uvicorn==0.47.0
+python-multipart==0.0.29
+pydantic==2.12.4
+
+# Monitoring / metrics
+prometheus_client==0.21.1
+evidently==0.7.21
+
+# Data
+numpy==2.2.3
+pandas==2.2.3
+
+# ML inference
+torch==2.6.0
+scikit-learn==1.6.1
+joblib==1.5.0
+
+# Utilities
+pyyaml==6.0.2
+python-dotenv==1.2.2
