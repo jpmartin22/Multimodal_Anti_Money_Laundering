@@ -60,3 +60,17 @@ jobs:
         run: |
           make data
           make train
+
+      - name: Run AUC-PR Evaluation Gate
+        run: |
+          python -m multimodal_anti_money_laundering.evaluation.eval_gate --metrics reports/metrics.json
+      
+      - name: Run Great Expectations Data Schema Gate
+        run: |
+          # Triggers data processing which internally executes your validation suite
+          make data
+
+      - name: Run MLflow Model Registry Promotion
+        run: |
+          # Automatically registers and promotes the verified model to Staging
+          python -m multimodal_anti_money_laundering.models.register_model
