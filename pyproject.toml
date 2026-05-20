@@ -12,7 +12,7 @@ authors = [
     {name = "Preshita Soni", email = "psoni7@depaul.edu"},
     {name = "Rajani Meka", email = "rmeka1@depaul.edu"},
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 dependencies = [
     # Core
