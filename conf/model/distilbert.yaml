@@ -1,0 +1,12 @@
+# @package _global_
+model:
+  name: "distilbert"
+  architecture: "distilbert-base-uncased"
+  max_length: 128
+  batch_size: 4
+  learning_rate: 5e-5
+  weight_decay: 0.01
+
+metrics:
+  target_threshold: 0.80
+  primary_key: "auc_pr"

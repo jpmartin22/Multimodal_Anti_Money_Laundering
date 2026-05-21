@@ -1,0 +1,80 @@
+# Dockerfile.graphsage
+# Member A (Jaya) — Phase 2 §1 Containerization
+#
+# Builds a lean image for GraphSAGE training + inference on the Elliptic dataset.
+# Installs only the GraphSAGE dependency stack (torch, pyg, mlflow, hydra)
+# instead of the full requirements.txt — keeps the image under 3 GB.
+#
+# Build:
+#   docker build -f dockerfiles/Dockerfile.graphsage -t aml-graphsage:latest .
+#
+# Train (default config):
+#   docker run --rm \
+#     -v $(pwd)/data:/app/data \
+#     -v $(pwd)/models:/app/models \
+#     -v $(pwd)/logs:/app/logs \
+#     -v $(pwd)/mlruns:/app/mlruns \
+#     aml-graphsage:latest
+#
+# Train with Hydra overrides:
+#   docker run --rm \
+#     -v $(pwd)/data:/app/data \
+#     -v $(pwd)/models:/app/models \
+#     -v $(pwd)/logs:/app/logs \
+#     -v $(pwd)/mlruns:/app/mlruns \
+#     aml-graphsage:latest model=graphsage_large training.lr=0.005
+#
+# Smoke test (fast config, 8k nodes, 5 epochs):
+#   docker run --rm \
+#     -v $(pwd)/data:/app/data \
+#     -v $(pwd)/models:/app/models \
+#     aml-graphsage:latest training=fast
+#
+# Environment variables:
+#   MLFLOW_TRACKING_URI  — override MLflow server (default: local ./mlruns)
+#   PYTHONUNBUFFERED=1   — set by default for streaming logs
+
+# ── Stage 1: builder ─────────────────────────────────────────────────────────
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+
+# System deps needed to compile some packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ git && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install PyTorch (CPU) + PyTorch Geometric first — largest layers, cached separately
+RUN pip install --no-cache-dir --user \
+    torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+
+RUN pip install --no-cache-dir --user \
+    torch-geometric==2.7.0
+
+# Install the rest of the GraphSAGE stack
+COPY requirements-graphsage.txt .
+RUN pip install --no-cache-dir --user -r requirements-graphsage.txt
+
+# ── Stage 2: runtime ─────────────────────────────────────────────────────────
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY --from=builder /root/.local /root/.local
+ENV PATH=/root/.local/bin:$PATH
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Copy only what training needs
+COPY src/          src/
+COPY conf/         conf/
+COPY pyproject.toml .
+
+RUN pip install --no-cache-dir -e . --no-deps
+
+# Data and model dirs are mounted at runtime (see docker run -v flags above)
+VOLUME ["/app/data", "/app/models", "/app/logs", "/app/mlruns"]
+
+# Default: train with Hydra config (supports CLI overrides as CMD args)
+ENTRYPOINT ["python", "src/multimodal_anti_money_laundering/train_graphsage_hydra.py"]
+CMD []

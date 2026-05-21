@@ -21,7 +21,7 @@ from pathlib import Path
 from multimodal_anti_money_laundering.config import DEFAULT_CONFIG, MODELS_DIR
 from multimodal_anti_money_laundering.logging_config import get_logger, setup_logging
 from multimodal_anti_money_laundering.utils.seed import set_seed
-
+import mlflow.xgboost #added by preshita
 logger = get_logger(__name__)
 
 
@@ -90,6 +90,7 @@ def train_baseline(
         with mlflow.start_run(run_name="xgb_baseline"):
             mlflow.log_params(run_params)
             model.fit(X_train, y_train, X_val, y_val, cfg.early_stopping_rounds)
+            mlflow.xgboost.log_model(model._model, artifact_path="model") #added by preshita
             metrics = model.evaluate(X_test, y_test)
             mlflow.log_metrics(metrics)
             model_path = model_dir / "baseline_xgb.joblib"

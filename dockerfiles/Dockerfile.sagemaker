@@ -1,0 +1,37 @@
+# SageMaker inference image for the AML multimodal scorer.
+#
+# SageMaker protocol requirements:
+#   GET  /ping        → 200  (container health check)
+#   POST /invocations → predictions
+#
+# Build:
+#   docker build -f dockerfiles/Dockerfile.sagemaker -t aml-scorer:latest .
+#
+# Push to ECR (Week 4 CI step):
+#   docker tag aml-scorer:latest <account>.dkr.ecr.<region>.amazonaws.com/aml-scorer:latest
+#   docker push <account>.dkr.ecr.<region>.amazonaws.com/aml-scorer:latest
+
+# Stage 1: builder
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Stage 2: runtime
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY --from=builder /root/.local /root/.local
+ENV PATH=/root/.local/bin:$PATH
+ENV PYTHONUNBUFFERED=1
+
+COPY . .
+RUN pip install --no-cache-dir -e .
+
+EXPOSE 8080
+
+# SageMaker sends traffic to port 8080 by default
+CMD ["uvicorn", "multimodal_anti_money_laundering.serving.api:app", \
+     "--host", "0.0.0.0", "--port", "8080"]

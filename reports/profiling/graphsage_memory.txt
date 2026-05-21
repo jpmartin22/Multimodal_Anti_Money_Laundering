@@ -1,0 +1,16 @@
+GraphSAGE Memory Profile Report
+=============================================
+Nodes profiled : 8,000
+Edges profiled : 1,090
+Base memory    : 478.4 MB
+Peak memory    : 478.4 MB
+Memory delta   : 0.0 MB
+Samples taken  : 6
+
+Memory over time (MB):
+  t=0.0s : 478.4 MB
+  t=0.5s : 478.4 MB
+  t=1.0s : 478.4 MB
+  t=1.5s : 478.4 MB
+  t=2.0s : 478.4 MB
+  t=2.5s : 478.4 MB

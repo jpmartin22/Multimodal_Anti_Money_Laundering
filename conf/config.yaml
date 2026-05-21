@@ -1,0 +1,8 @@
+defaults:
+  - model: graphsage_base
+  - data: elliptic
+  - training: default
+  - _self_
+
+# Top-level experiment name — used as MLflow run name
+experiment_name: graphsage_default

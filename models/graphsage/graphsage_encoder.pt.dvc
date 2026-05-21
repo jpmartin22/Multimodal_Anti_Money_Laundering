@@ -1,0 +1,5 @@
+outs:
+- md5: dca784ed264f34e06020071f7fb63e8c
+  size: 238605
+  hash: md5
+  path: graphsage_encoder.pt

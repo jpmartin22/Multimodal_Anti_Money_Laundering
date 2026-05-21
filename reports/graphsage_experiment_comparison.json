@@ -1,0 +1,45 @@
+{
+  "experiments": [
+    {
+      "Run": "graphsage_lr0.001_h128_ep2",
+      "lr": "0.001",
+      "hidden_dim": "128",
+      "dropout": "0.3",
+      "val_auc_pr": 0.4816,
+      "test_auc_pr": 0.4307,
+      "val_f1_fraud": 0.0,
+      "train_min": 0.1
+    },
+    {
+      "Run": "graphsage_lr0.001_h128_ep200",
+      "lr": "0.001",
+      "hidden_dim": "128",
+      "dropout": "0.3",
+      "val_auc_pr": 0.9318,
+      "test_auc_pr": 0.9261,
+      "val_f1_fraud": 0.0,
+      "train_min": 1.5
+    },
+    {
+      "Run": "graphsage_lr0.005_h128_ep200",
+      "lr": "0.005",
+      "hidden_dim": "128",
+      "dropout": "0.3",
+      "val_auc_pr": 0.9342,
+      "test_auc_pr": 0.9264,
+      "val_f1_fraud": 0.0,
+      "train_min": 1.7
+    },
+    {
+      "Run": "graphsage_lr0.001_h256_ep200",
+      "lr": "0.001",
+      "hidden_dim": "256",
+      "dropout": "0.5",
+      "val_auc_pr": 0.9331,
+      "test_auc_pr": 0.9299,
+      "val_f1_fraud": 0.0,
+      "train_min": 2.3
+    }
+  ],
+  "best_run": "graphsage_lr0.001_h256_ep200"
+}

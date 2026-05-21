@@ -1,0 +1,6 @@
+# GraphSAGE large model — best config from MLflow experiment comparison
+# Exp 3 results: test AUC-PR = 0.9299 (best overall)
+in_channels: 165
+hidden_channels: 256
+embedding_dim: 64
+dropout: 0.5

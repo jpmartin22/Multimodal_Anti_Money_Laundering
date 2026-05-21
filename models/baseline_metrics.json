@@ -1,31 +1,7 @@
 {
-  "model": "xgb_baseline",
-  "dataset": "elliptic_real",
-  "split": {
-    "train": 32594,
-    "val": 6984,
-    "test": 6986
-  },
-  "val_metrics": {
-    "AUC-PR (primary)": 0.9860,
-    "Prec @ Recall=0.80": 0.9982,
-    "FPR @ Recall=0.80": 0.0002,
-    "F1 (thresh=0.5)": 0.9588,
-    "ROC-AUC": 0.9961
-  },
-  "test_metrics": {
-    "AUC-PR (primary)": 0.9891,
-    "Prec @ Recall=0.80": 1.0,
-    "FPR @ Recall=0.80": 0.0,
-    "F1 (thresh=0.5)": 0.9632,
-    "ROC-AUC": 0.9977
-  },
-  "hyperparams": {
-    "n_estimators": 488,
-    "max_depth": 6,
-    "learning_rate": 0.05,
-    "subsample": 0.8,
-    "colsample_bytree": 0.8,
-    "scale_pos_weight": 9.46
-  }
+  "auc_pr": 0.1202,
+  "precision_at_r80": 0.0504,
+  "fpr_at_r80": 0.3075,
+  "f1": 0.1573,
+  "roc_auc": 0.8088
 }

@@ -1,0 +1,52 @@
+{
+  "config": {
+    "model": {
+      "in_channels": 165,
+      "hidden_channels": 256,
+      "embedding_dim": 64,
+      "dropout": 0.5
+    },
+    "data": {
+      "features_path": "data/processed/graph_features.npy",
+      "edge_index_path": "data/processed/graph_edge_index.npy",
+      "labels_path": "data/processed/graph_labels.npy",
+      "test_size": 0.15,
+      "val_size": 0.15,
+      "seed": 42
+    },
+    "training": {
+      "lr": 0.001,
+      "epochs": 200,
+      "weight_decay": 1e-05,
+      "grad_clip": 1.0,
+      "eval_every": 20,
+      "mlflow_experiment": "aml_graphsage_graph",
+      "model_dir": "models/graphsage",
+      "metrics_output": "graphsage_metrics.json",
+      "log_file": "logs/graphsage_training.log"
+    },
+    "experiment_name": "graphsage_default"
+  },
+  "val_metrics": {
+    "auc_pr": 0.9331,
+    "prec_at_recall_80": 0.9664,
+    "f1_fraud": 0,
+    "recall_fraud": 0,
+    "precision_fraud": 0,
+    "false_positive_rate": 0.0,
+    "accuracy": 0.978,
+    "optimal_threshold": 0.8581
+  },
+  "test_metrics": {
+    "auc_pr": 0.9299,
+    "prec_at_recall_80": 0.9463,
+    "f1_fraud": 0,
+    "recall_fraud": 0,
+    "precision_fraud": 0,
+    "false_positive_rate": 0.0,
+    "accuracy": 0.9767,
+    "optimal_threshold": 0.8515
+  },
+  "best_epoch": 200,
+  "training_time_min": 2.26
+}

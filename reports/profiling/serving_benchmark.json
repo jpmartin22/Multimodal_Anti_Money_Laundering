@@ -1,0 +1,13 @@
+{
+  "n_requests": 500,
+  "mean_ms": 2.787,
+  "std_ms": 4.055,
+  "min_ms": 1.214,
+  "p50_ms": 1.685,
+  "p95_ms": 8.415,
+  "p99_ms": 23.82,
+  "max_ms": 50.766,
+  "sla_target_ms": 200.0,
+  "sla_passed": true,
+  "throughput_rps": 358.87
+}

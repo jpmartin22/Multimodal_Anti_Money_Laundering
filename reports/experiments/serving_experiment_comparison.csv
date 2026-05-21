@@ -1,0 +1,4 @@
+experiment,threshold,mean_ms,std_ms,p50_ms,p95_ms,p99_ms,throughput_rps,flagged_rate,sla_passed
+conservative,0.3,1.461,0.422,1.326,2.18,3.203,684.58,1.0,True
+balanced,0.5,1.533,2.095,1.35,1.881,2.14,652.11,1.0,True
+strict,0.7,1.472,0.242,1.404,1.874,2.552,679.5,0.0,True
