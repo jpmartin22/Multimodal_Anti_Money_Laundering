@@ -1,0 +1,6 @@
+# BiLSTM behavioral sequence encoder
+input_size: 165
+hidden_size: 64
+num_layers: 2
+dropout: 0.3
+embedding_dim: 64

@@ -28,23 +28,29 @@ Usage
     python train_bilstm.py
 
     # Smoke test (fast, for CI):
-    python train_bilstm.py --epochs 1 --max_samples 5000
+    python train_bilstm.py training=bilstm_fast
 
     # Custom hyperparams (for MLflow experiments):
-    python train_bilstm.py --lr 0.0001 --hidden_size 128 --epochs 15
+    python train_bilstm.py training.lr=0.0001 model.hidden_size=128 training.epochs=15
+
+    # Print resolved config without training:
+    python train_bilstm.py --cfg job
 """
 
-import argparse
 import json
 import logging
 import logging.handlers
 import os
 import time
+from collections.abc import Mapping
+from typing import Any
 
+import hydra
 import mlflow
 import numpy as np
 import torch
 import torch.nn as nn
+from omegaconf import DictConfig, OmegaConf
 from sklearn.metrics import (
     average_precision_score,
     classification_report,
@@ -52,13 +58,6 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
-
-# ─────────────────────────────────────────────────────────────────────────────
-# SEED
-# ─────────────────────────────────────────────────────────────────────────────
-SEED = 42
-torch.manual_seed(SEED)
-np.random.seed(SEED)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LOGGER SETUP  (Phase 2 — §2 Monitoring & §5 Logging)
@@ -72,7 +71,7 @@ def setup_logger(log_file: str = "logs/bilstm_training.log") -> logging.Logger:
       - File handler    : DEBUG and above (full detail for debugging)
       - Log rotation    : 5 MB max, 3 backup files (prevents disk bloat)
     """
-    os.makedirs("logs", exist_ok=True)
+    os.makedirs(os.path.dirname(log_file) or ".", exist_ok=True)
     logger = logging.getLogger("bilstm")
     logger.setLevel(logging.DEBUG)
 
@@ -103,7 +102,7 @@ def setup_logger(log_file: str = "logs/bilstm_training.log") -> logging.Logger:
     return logger
 
 
-logger = setup_logger()
+logger = logging.getLogger("bilstm")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MODEL
@@ -159,11 +158,20 @@ class BiLSTMClassifier(nn.Module):
     """
 
     def __init__(
-        self, input_size: int = 165, hidden_size: int = 64, embedding_dim: int = 64
+        self,
+        input_size: int = 165,
+        hidden_size: int = 64,
+        num_layers: int = 2,
+        dropout: float = 0.3,
+        embedding_dim: int = 64,
     ):
         super().__init__()
         self.encoder = BiLSTMEncoder(
-            input_size=input_size, hidden_size=hidden_size, embedding_dim=embedding_dim
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            dropout=dropout,
+            embedding_dim=embedding_dim,
         )
         self.head = nn.Sequential(nn.Linear(embedding_dim, 1), nn.Sigmoid())
 
@@ -343,20 +351,45 @@ def evaluate(model, loader, device) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def train(args):
+def flatten_config(config: Mapping[str, Any], prefix: str = "") -> dict[str, Any]:
+    """Flatten nested Hydra config into MLflow-friendly scalar params."""
+    flat: dict[str, Any] = {}
+    for key, value in config.items():
+        name = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, Mapping):
+            flat.update(flatten_config(value, name))
+        elif isinstance(value, str | int | float | bool) or value is None:
+            flat[name] = value
+    return flat
+
+
+def resolve_max_samples(cfg: DictConfig) -> int | None:
+    return cfg.training.get("max_samples", None) or cfg.data.get("max_samples", None)
+
+
+def train(cfg: DictConfig):
     train_start = time.time()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Device: {device}")
 
+    torch.manual_seed(cfg.data.seed)
+    np.random.seed(cfg.data.seed)
+
     # ── Data ──────────────────────────────────────────────────────────────────
-    X, y = load_data(args.windows, args.labels, args.max_samples)
-    run_sanity_checks(X, y, expected_features=X.shape[2])
+    X, y = load_data(
+        cfg.data.windows_path, cfg.data.labels_path, resolve_max_samples(cfg)
+    )
+    run_sanity_checks(X, y, expected_features=cfg.model.input_size)
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.15, stratify=y, random_state=SEED
+        X, y, test_size=cfg.data.test_size, stratify=y, random_state=cfg.data.seed
     )
     X_train, X_val, y_train, y_val = train_test_split(
-        X_train, y_train, test_size=0.15, stratify=y_train, random_state=SEED
+        X_train,
+        y_train,
+        test_size=cfg.data.val_size,
+        stratify=y_train,
+        random_state=cfg.data.seed,
     )
     logger.info(
         f"Split — Train: {len(X_train):,} | Val: {len(X_val):,} | Test: {len(X_test):,}"
@@ -368,7 +401,7 @@ def train(args):
             torch.tensor(y_arr, dtype=torch.float32),
         )
         return DataLoader(
-            ds, batch_size=args.batch_size, shuffle=shuffle, num_workers=0
+            ds, batch_size=cfg.training.batch_size, shuffle=shuffle, num_workers=0
         )
 
     train_loader = make_loader(X_train, y_train, shuffle=True)
@@ -377,56 +410,56 @@ def train(args):
 
     # ── Model ─────────────────────────────────────────────────────────────────
     model = BiLSTMClassifier(
-        input_size=X.shape[2], hidden_size=args.hidden_size, embedding_dim=64
+        input_size=cfg.model.input_size,
+        hidden_size=cfg.model.hidden_size,
+        num_layers=cfg.model.num_layers,
+        dropout=cfg.model.dropout,
+        embedding_dim=cfg.model.embedding_dim,
     ).to(device)
 
     pos_weight = compute_pos_weight(y_train).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=cfg.training.lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="max", patience=2, factor=0.5
     )
 
     logger.info(
-        f"Model created — input_size={X.shape[2]}, "
-        f"hidden_size={args.hidden_size}, embedding_dim=64"
+        f"Model created — input_size={cfg.model.input_size}, "
+        f"hidden_size={cfg.model.hidden_size}, "
+        f"embedding_dim={cfg.model.embedding_dim}"
     )
     logger.debug(f"Full model architecture:\n{model}")
 
     # ── MLflow ────────────────────────────────────────────────────────────────
-    mlflow.set_experiment("aml_bilstm_behavioral")
+    mlflow.set_experiment(cfg.training.mlflow_experiment)
 
-    with mlflow.start_run(
-        run_name=f"bilstm_lr{args.lr}_h{args.hidden_size}_ep{args.epochs}"
-    ):
+    run_name = (
+        f"{cfg.experiment_name}_"
+        f"lr{cfg.training.lr}_h{cfg.model.hidden_size}_ep{cfg.training.epochs}"
+    )
+    with mlflow.start_run(run_name=run_name):
+        resolved_cfg = OmegaConf.to_container(cfg, resolve=True)
+        mlflow.log_params(flatten_config(resolved_cfg))
         mlflow.log_params(
             {
                 "model": "BiLSTM",
-                "input_size": X.shape[2],
-                "hidden_size": args.hidden_size,
-                "num_layers": 2,
                 "bidirectional": True,
-                "embedding_dim": 64,
-                "dropout": 0.3,
-                "epochs": args.epochs,
-                "batch_size": args.batch_size,
-                "lr": args.lr,
                 "window_size": X.shape[1],
                 "n_features": X.shape[2],
                 "train_rows": len(X_train),
                 "val_rows": len(X_val),
                 "test_rows": len(X_test),
-                "seed": SEED,
                 "device": str(device),
             }
         )
 
         best_auc_pr = 0.0
-        best_model_path = os.path.join(args.output_dir, "bilstm_best.pt")
-        os.makedirs(args.output_dir, exist_ok=True)
+        best_model_path = os.path.join(cfg.training.output_dir, "bilstm_best.pt")
+        os.makedirs(cfg.training.output_dir, exist_ok=True)
 
-        logger.info(f"Starting training for {args.epochs} epoch(s)...")
+        logger.info(f"Starting training for {cfg.training.epochs} epoch(s)...")
 
-        for epoch in range(1, args.epochs + 1):
+        for epoch in range(1, cfg.training.epochs + 1):
             epoch_start = time.time()
 
             # ── Train ─────────────────────────────────────────────────────────
@@ -458,7 +491,9 @@ def train(args):
                 ).mean()
 
                 loss.backward()
-                nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                nn.utils.clip_grad_norm_(
+                    model.parameters(), max_norm=cfg.training.grad_clip
+                )
                 optimizer.step()
                 total_loss += loss.item()
 
@@ -470,7 +505,7 @@ def train(args):
             scheduler.step(val_metrics["auc_pr"])
 
             logger.info(
-                f"Epoch {epoch:02d}/{args.epochs:02d} | "
+                f"Epoch {epoch:02d}/{cfg.training.epochs:02d} | "
                 f"loss={avg_loss:.4f} | "
                 f"val_auc_pr={val_metrics['auc_pr']:.4f} | "
                 f"val_f1={val_metrics['f1_fraud']:.4f} | "
@@ -512,13 +547,13 @@ def train(args):
         mlflow.log_metric("total_training_minutes", round(total_time / 60, 2))
 
         # ── Save encoder for fusion head ───────────────────────────────────────
-        encoder_path = os.path.join(args.output_dir, "bilstm_encoder.pt")
+        encoder_path = os.path.join(cfg.training.output_dir, "bilstm_encoder.pt")
         torch.save(model.encoder.state_dict(), encoder_path)
         logger.info(f"Encoder saved → {encoder_path}")
         logger.info(f"Full model saved → {best_model_path}")
 
         # ── Save metrics JSON for CI eval gate ────────────────────────────────
-        metrics_path = "bilstm_metrics.json"
+        metrics_path = cfg.training.metrics_output
         with open(metrics_path, "w") as f:
             json.dump(test_metrics, f, indent=2)
         logger.debug(f"Metrics JSON saved → {metrics_path}")
@@ -528,65 +563,44 @@ def train(args):
         mlflow.log_artifact(metrics_path)
 
         # ── Eval gate ─────────────────────────────────────────────────────────
-        gate_passed = test_metrics["auc_pr"] >= 0.70
+        gate_passed = test_metrics["auc_pr"] >= cfg.training.eval_gate_auc_pr
         if gate_passed:
             logger.info(
-                f"Eval gate PASSED — AUC-PR {test_metrics['auc_pr']:.4f} >= 0.70"
+                f"Eval gate PASSED — AUC-PR {test_metrics['auc_pr']:.4f} "
+                f">= {cfg.training.eval_gate_auc_pr:.2f}"
             )
         else:
             logger.warning(
-                f"Eval gate FAILED — AUC-PR {test_metrics['auc_pr']:.4f} < 0.70"
+                f"Eval gate FAILED — AUC-PR {test_metrics['auc_pr']:.4f} "
+                f"< {cfg.training.eval_gate_auc_pr:.2f}"
             )
 
     return test_metrics
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CLI
+# HYDRA ENTRY POINT
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Member B — BiLSTM training on Elliptic behavioral sequences."
-    )
-    parser.add_argument(
-        "--windows", type=str, default="data/processed/bilstm_sequences.npy"
-    )
-    parser.add_argument(
-        "--labels", type=str, default="data/processed/bilstm_labels.npy"
-    )
-    parser.add_argument("--output_dir", type=str, default="models/bilstm")
-    parser.add_argument(
-        "--epochs",
-        type=int,
-        default=10,
-        help="Training epochs (default: 10; use 1 for smoke test)",
-    )
-    parser.add_argument("--batch_size", type=int, default=256)
-    parser.add_argument(
-        "--lr", type=float, default=1e-3, help="Learning rate (default: 1e-3)"
-    )
-    parser.add_argument(
-        "--hidden_size", type=int, default=64, help="LSTM hidden size (default: 64)"
-    )
-    parser.add_argument(
-        "--max_samples",
-        type=int,
-        default=None,
-        help="Cap dataset size for smoke tests (e.g. 5000)",
-    )
-    args = parser.parse_args()
+@hydra.main(config_path="../../conf", config_name="config_bilstm", version_base="1.3")
+def main(cfg: DictConfig) -> None:
+    os.chdir(hydra.utils.get_original_cwd())
+
+    global logger
+    logger = setup_logger(cfg.training.log_file)
 
     logger.info("=" * 55)
     logger.info("BiLSTM Training Started")
     logger.info(
-        f"Config: lr={args.lr}, hidden={args.hidden_size}, epochs={args.epochs}"
+        f"Config: lr={cfg.training.lr}, hidden={cfg.model.hidden_size}, "
+        f"epochs={cfg.training.epochs}"
     )
+    logger.info(f"\n{OmegaConf.to_yaml(cfg)}")
     logger.info("=" * 55)
 
     try:
-        train(args)
+        train(cfg)
     except FileNotFoundError as e:
         logger.error(f"Data file missing: {e}")
         raise

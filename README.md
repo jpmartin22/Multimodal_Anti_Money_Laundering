@@ -86,6 +86,18 @@ graph TB
 
 See [REPORT.md](REPORT.md) for current model results.
 
+## Current Model Results
+
+Latest local metrics from `distilbert_metrics.json`, `bilstm_metrics.json`, and `graphsage_metrics.json`:
+
+| Branch | AUC-PR | Precision @ Recall = 0.8 | F1 | Precision | Recall | Accuracy | FPR |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| GraphSAGE | 0.9299 | 0.9463 | 0.0000 | 0.0000 | 0.0000 | 0.9767 | 0.0000 |
+| DistilBERT | 0.8418 | 1.0000 | 0.9011 | 1.0000 | 0.8200 | 0.9964 | — |
+| BiLSTM | 0.9324 | 0.9613 | 0.8672 | 0.8327 | 0.9047 | 0.9729 | 0.0197 |
+
+DistilBERT evaluation throughput: 2,009.5 samples/sec, 31.6 steps/sec after 3 epochs. BiLSTM selected threshold: 0.3000.
+
 ---
 
 ## Phase Deliverables
@@ -151,6 +163,70 @@ conf/
     default.yaml            # lr=0.001, epochs=200, grad_clip=1.0
     fast.yaml               # epochs=5, max_nodes=8000  ← smoke test
 ```
+
+### DistilBERT Configuration
+
+Fine-tune the memo text model with Hydra:
+
+```bash
+# Default DistilBERT config
+python src/multimodal_anti_money_laundering/train_distilbert.py
+
+# Fast CPU smoke test
+python src/multimodal_anti_money_laundering/train_distilbert.py training=distilbert_fast
+
+# Override individual values
+python src/multimodal_anti_money_laundering/train_distilbert.py \
+    training.epochs=1 data.max_samples=5000
+
+# Print resolved config without training
+python src/multimodal_anti_money_laundering/train_distilbert.py --cfg job
+```
+
+Latest DistilBERT metrics (`distilbert_metrics.json`):
+
+| Metric | Value |
+|---|---:|
+| Eval loss | 0.2451 |
+| AUC-PR | 0.8418 |
+| Precision @ Recall = 0.8 | 1.0000 |
+| F1 illicit | 0.9011 |
+| Precision illicit | 1.0000 |
+| Recall illicit | 0.8200 |
+| Accuracy | 0.9964 |
+| Eval samples/sec | 2,009.5 |
+
+### BiLSTM Configuration
+
+Train the behavioral sequence model with Hydra:
+
+```bash
+# Default BiLSTM config
+python src/multimodal_anti_money_laundering/train_bilstm.py
+
+# Fast smoke test
+python src/multimodal_anti_money_laundering/train_bilstm.py training=bilstm_fast
+
+# Override individual values
+python src/multimodal_anti_money_laundering/train_bilstm.py \
+    training.epochs=5 model.hidden_size=128 training.lr=0.0001
+
+# Print resolved config without training
+python src/multimodal_anti_money_laundering/train_bilstm.py --cfg job
+```
+
+Latest BiLSTM metrics (`bilstm_metrics.json`):
+
+| Metric | Value |
+|---|---:|
+| AUC-PR | 0.9324 |
+| Precision @ Recall = 0.8 | 0.9613 |
+| F1 fraud | 0.8672 |
+| Precision fraud | 0.8327 |
+| Recall fraud | 0.9047 |
+| False positive rate | 0.0197 |
+| Accuracy | 0.9729 |
+| Optimal threshold | 0.3000 |
 
 ### Profiling
 

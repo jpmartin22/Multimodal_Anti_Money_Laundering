@@ -1,0 +1,17 @@
+# Default DistilBERT fine-tuning settings
+epochs: 3
+train_batch_size: 32
+eval_batch_size: 64
+learning_rate: 2e-5
+weight_decay: 0.01
+warmup_ratio: 0.1
+logging_steps: 50
+fp16: false
+
+# MLflow
+mlflow_experiment: aml_distilbert_memo
+
+# Output paths
+output_dir: checkpoints/distilbert
+model_subdir: memo_model
+metrics_output: distilbert_metrics.json

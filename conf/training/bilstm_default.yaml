@@ -1,0 +1,14 @@
+# Default BiLSTM training settings
+epochs: 10
+batch_size: 256
+lr: 1e-3
+grad_clip: 1.0
+eval_gate_auc_pr: 0.70
+
+# MLflow
+mlflow_experiment: aml_bilstm_behavioral
+
+# Output paths
+output_dir: models/bilstm
+metrics_output: bilstm_metrics.json
+log_file: logs/bilstm_training.log

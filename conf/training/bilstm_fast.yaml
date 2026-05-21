@@ -1,0 +1,12 @@
+# Fast BiLSTM smoke-test settings
+epochs: 1
+batch_size: 128
+lr: 1e-3
+grad_clip: 1.0
+max_samples: 5000
+eval_gate_auc_pr: 0.70
+
+mlflow_experiment: aml_bilstm_behavioral
+output_dir: models/bilstm
+metrics_output: bilstm_metrics.json
+log_file: logs/bilstm_training.log

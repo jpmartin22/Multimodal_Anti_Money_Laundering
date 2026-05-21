@@ -1,0 +1,7 @@
+# Synthetic memo text dataset for DistilBERT training
+csv_path: data/raw/memo_dataset.csv
+test_size: 0.15
+seed: 42
+
+# Set to a number for local smoke tests, or null for the full dataset.
+max_samples: null

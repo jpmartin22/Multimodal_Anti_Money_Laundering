@@ -1,0 +1,7 @@
+defaults:
+  - model: distilbert
+  - data: memo
+  - training: distilbert_default
+  - _self_
+
+experiment_name: distilbert_memo

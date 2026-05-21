@@ -1,0 +1,7 @@
+defaults:
+  - model: bilstm
+  - data: bilstm
+  - training: bilstm_default
+  - _self_
+
+experiment_name: bilstm_behavioral

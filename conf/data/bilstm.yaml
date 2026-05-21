@@ -1,0 +1,13 @@
+# Preprocessed behavioral sequence arrays
+windows_path: data/processed/bilstm_sequences.npy
+labels_path: data/processed/bilstm_labels.npy
+
+# Split ratios
+test_size: 0.15
+val_size: 0.15
+
+# Reproducibility
+seed: 42
+
+# Set to a number for local smoke tests, or null for the full dataset.
+max_samples: null

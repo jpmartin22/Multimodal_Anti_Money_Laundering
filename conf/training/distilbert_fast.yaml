@@ -1,0 +1,15 @@
+# Fast DistilBERT smoke-test settings
+epochs: 1
+train_batch_size: 8
+eval_batch_size: 16
+learning_rate: 2e-5
+weight_decay: 0.01
+warmup_ratio: 0.1
+logging_steps: 10
+fp16: false
+max_samples: 500
+
+mlflow_experiment: aml_distilbert_memo
+output_dir: checkpoints/distilbert_fast
+model_subdir: memo_model
+metrics_output: distilbert_metrics.json

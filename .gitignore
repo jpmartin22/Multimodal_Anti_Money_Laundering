@@ -156,3 +156,4 @@ mlflow.db
 mlruns/
 logs/
 checkpoints/
+outputs/
