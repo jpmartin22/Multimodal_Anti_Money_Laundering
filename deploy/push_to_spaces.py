@@ -38,23 +38,23 @@ def build_space_directory(tmp_dir: Path) -> None:
     """Copy all files needed by the HF Space into tmp_dir."""
 
     # 1. HF Space README (contains YAML frontmatter — required by HF)
-    shutil.copy(PROJECT_ROOT / "deploy" / "huggingface" / "README.md",
-                tmp_dir / "README.md")
+    shutil.copy(
+        PROJECT_ROOT / "deploy" / "huggingface" / "README.md", tmp_dir / "README.md"
+    )
 
     # 2. Dockerfile (HF port 7860 variant)
-    shutil.copy(PROJECT_ROOT / "dockerfiles" / "Dockerfile.hf",
-                tmp_dir / "Dockerfile")
+    shutil.copy(PROJECT_ROOT / "dockerfiles" / "Dockerfile.hf", tmp_dir / "Dockerfile")
 
     # 3. Python package source
     shutil.copytree(PROJECT_ROOT / "src", tmp_dir / "src")
 
     # 4. Serving requirements
-    shutil.copy(PROJECT_ROOT / "requirements.serve.txt",
-                tmp_dir / "requirements.serve.txt")
+    shutil.copy(
+        PROJECT_ROOT / "requirements.serve.txt", tmp_dir / "requirements.serve.txt"
+    )
 
     # 5. pyproject.toml (needed for pip install -e .)
-    shutil.copy(PROJECT_ROOT / "pyproject.toml",
-                tmp_dir / "pyproject.toml")
+    shutil.copy(PROJECT_ROOT / "pyproject.toml", tmp_dir / "pyproject.toml")
 
     # 6. .env.example (safe — no secrets)
     env_example = PROJECT_ROOT / ".env.example"
@@ -103,7 +103,7 @@ def push_to_spaces(username: str, space_name: str, update: bool) -> str:
         )
 
     url = f"https://huggingface.co/spaces/{repo_id}"
-    print(f"\nDeploy complete.")
+    print("\nDeploy complete.")
     print(f"Space URL : {url}")
     print(f"API docs  : {url}/docs")
     print(f"Health    : {url}/health")
@@ -113,11 +113,15 @@ def push_to_spaces(username: str, space_name: str, update: bool) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Push AML API to HuggingFace Spaces")
-    parser.add_argument("--username",   required=True, help="HuggingFace username")
-    parser.add_argument("--space-name", default="aml-multimodal-scorer",
-                        help="Space name (default: aml-multimodal-scorer)")
-    parser.add_argument("--update", action="store_true",
-                        help="Skip Space creation, just upload files")
+    parser.add_argument("--username", required=True, help="HuggingFace username")
+    parser.add_argument(
+        "--space-name",
+        default="aml-multimodal-scorer",
+        help="Space name (default: aml-multimodal-scorer)",
+    )
+    parser.add_argument(
+        "--update", action="store_true", help="Skip Space creation, just upload files"
+    )
     args = parser.parse_args()
 
     token = os.environ.get("HF_TOKEN")

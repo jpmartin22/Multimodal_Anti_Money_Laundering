@@ -173,7 +173,9 @@ def run_memory_profile(X, y):
         f"Memory delta  : {delta_mb:.1f} MB\n"
         f"Samples taken : {len(mem_usage)}\n\n"
         f"Memory over time (MB):\n"
-        + "\n".join([f"  t={i*0.5:.1f}s : {m:.1f} MB" for i, m in enumerate(mem_usage)])
+        + "\n".join(
+            [f"  t={i * 0.5:.1f}s : {m:.1f} MB" for i, m in enumerate(mem_usage)]
+        )
     )
 
     path = os.path.join(OUTPUT_DIR, "bilstm_memory.txt")
@@ -181,13 +183,13 @@ def run_memory_profile(X, y):
         f.write(report)
 
     logger.info(f"Memory profile saved → {path}")
-    print(f"\n{'='*45}")
+    print(f"\n{'=' * 45}")
     print("  MEMORY PROFILING RESULTS")
-    print(f"{'='*45}")
+    print(f"{'=' * 45}")
     print(f"  Base memory  : {base_mb:.1f} MB")
     print(f"  Peak memory  : {peak_mb:.1f} MB")
     print(f"  Delta        : {delta_mb:.1f} MB")
-    print(f"{'='*45}\n")
+    print(f"{'=' * 45}\n")
 
     return peak_mb, delta_mb
 
@@ -242,13 +244,13 @@ def run_benchmark(X, y):
         json.dump(results, f, indent=2)
 
     logger.info(f"Benchmark saved → {path}")
-    print(f"\n{'='*45}")
+    print(f"\n{'=' * 45}")
     print("  BENCHMARK RESULTS")
-    print(f"{'='*45}")
+    print(f"{'=' * 45}")
     print(f"  Before (batch=64)  : {results['before']['time_seconds']}s")
     print(f"  After  (batch=256) : {results['after']['time_seconds']}s")
     print(f"  Speedup            : {speedup:.2f}x faster")
-    print(f"{'='*45}\n")
+    print(f"{'=' * 45}\n")
 
     return results
 

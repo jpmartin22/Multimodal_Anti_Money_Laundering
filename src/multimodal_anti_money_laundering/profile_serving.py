@@ -53,15 +53,14 @@ SAMPLE_PAYLOAD = {
     "transaction_id": "profile-tx-001",
     "graph": {"node_features": [0.1] * 166},
     "memo_text": "consulting services invoice Q1 wire transfer payment",
-    "time_series": {
-        "window": [[100.0, 14.0, 2.0, 1.0, 500.0]] * 10
-    },
+    "time_series": {"window": [[100.0, 14.0, 2.0, 1.0, 500.0]] * 10},
 }
 
 
 # ---------------------------------------------------------------------------
 # 1. cProfile — CPU hotspots
 # ---------------------------------------------------------------------------
+
 
 def run_predict_n(client: TestClient, n: int) -> list[float]:
     """Run N predict requests and return list of latencies in seconds."""
@@ -102,6 +101,7 @@ def run_cprofile(n: int = 200) -> None:
 # 2. memory_profiler — peak memory during inference
 # ---------------------------------------------------------------------------
 
+
 def _inference_loop(n: int = 100) -> None:
     """Target function for memory_profiler measurement."""
     client = TestClient(app)
@@ -126,7 +126,7 @@ def run_memory_profile(n: int = 100) -> float:
         f.write(f"Delta (overhead): {delta_mb:.1f} MB\n\n")
         f.write("Full trace (MB over time):\n")
         for i, m in enumerate(mem_usage):
-            f.write(f"  t={i*0.1:.1f}s  {m:.2f} MB\n")
+            f.write(f"  t={i * 0.1:.1f}s  {m:.2f} MB\n")
 
     logger.info("Memory profile saved → %s", out_path)
     logger.info("Peak: %.1f MB | Delta: %.1f MB", peak_mb, delta_mb)
@@ -136,6 +136,7 @@ def run_memory_profile(n: int = 100) -> float:
 # ---------------------------------------------------------------------------
 # 3. Benchmark — latency statistics
 # ---------------------------------------------------------------------------
+
 
 def run_benchmark(n: int = 500) -> dict:
     logger.info("Running latency benchmark over %d /predict requests...", n)
@@ -149,17 +150,17 @@ def run_benchmark(n: int = 500) -> dict:
     arr = np.array(latencies) * 1000  # convert to ms
 
     results = {
-        "n_requests":      n,
-        "mean_ms":         round(float(arr.mean()), 3),
-        "std_ms":          round(float(arr.std()), 3),
-        "min_ms":          round(float(arr.min()), 3),
-        "p50_ms":          round(float(np.percentile(arr, 50)), 3),
-        "p95_ms":          round(float(np.percentile(arr, 95)), 3),
-        "p99_ms":          round(float(np.percentile(arr, 99)), 3),
-        "max_ms":          round(float(arr.max()), 3),
-        "sla_target_ms":   200.0,
-        "sla_passed":      bool(np.percentile(arr, 95) < 200.0),
-        "throughput_rps":  round(n / (arr.sum() / 1000), 2),
+        "n_requests": n,
+        "mean_ms": round(float(arr.mean()), 3),
+        "std_ms": round(float(arr.std()), 3),
+        "min_ms": round(float(arr.min()), 3),
+        "p50_ms": round(float(np.percentile(arr, 50)), 3),
+        "p95_ms": round(float(np.percentile(arr, 95)), 3),
+        "p99_ms": round(float(np.percentile(arr, 99)), 3),
+        "max_ms": round(float(arr.max()), 3),
+        "sla_target_ms": 200.0,
+        "sla_passed": bool(np.percentile(arr, 95) < 200.0),
+        "throughput_rps": round(n / (arr.sum() / 1000), 2),
     }
 
     out_path = os.path.join(OUTPUT_DIR, "serving_benchmark.json")
@@ -181,14 +182,27 @@ def run_benchmark(n: int = 500) -> dict:
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Profile the AML serving API")
-    parser.add_argument("--n-requests", type=int, default=500,
-                        help="Number of requests for benchmark (default: 500)")
-    parser.add_argument("--n-profile",  type=int, default=200,
-                        help="Number of requests for cProfile (default: 200)")
-    parser.add_argument("--n-memory",   type=int, default=100,
-                        help="Number of requests for memory profile (default: 100)")
+    parser.add_argument(
+        "--n-requests",
+        type=int,
+        default=500,
+        help="Number of requests for benchmark (default: 500)",
+    )
+    parser.add_argument(
+        "--n-profile",
+        type=int,
+        default=200,
+        help="Number of requests for cProfile (default: 200)",
+    )
+    parser.add_argument(
+        "--n-memory",
+        type=int,
+        default=100,
+        help="Number of requests for memory profile (default: 100)",
+    )
     args = parser.parse_args()
 
     logger.info("=" * 55)

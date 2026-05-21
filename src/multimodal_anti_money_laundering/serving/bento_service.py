@@ -11,7 +11,10 @@ from __future__ import annotations
 
 import bentoml
 
-from multimodal_anti_money_laundering.serving.schemas import PredictRequest, PredictResponse
+from multimodal_anti_money_laundering.serving.schemas import (
+    PredictRequest,
+    PredictResponse,
+)
 
 _THRESHOLD = 0.5
 

@@ -31,6 +31,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
 def load_config(config_path: Path) -> dict:
     import os
+
     with open(config_path) as f:
         raw = f.read()
     expanded = os.path.expandvars(raw)  # resolves ${AWS_ACCOUNT_ID} from env
@@ -40,9 +41,10 @@ def load_config(config_path: Path) -> dict:
 def get_execution_role(region: str) -> str:
     """Return the SageMaker execution role ARN from environment or SSM."""
     import os
+
     role = os.environ.get("SAGEMAKER_ROLE_ARN")
     if not role:
-        raise EnvironmentError(
+        raise OSError(
             "Set SAGEMAKER_ROLE_ARN environment variable to your SageMaker IAM role ARN.\n"
             "Example: arn:aws:iam::<account>:role/SageMakerExecutionRole"
         )
@@ -73,13 +75,15 @@ def create_endpoint_config(sm: object, cfg: dict, role_arn: str) -> str:
 
     for variant, image_uri in zip(cfg["production_variants"], image_uris):
         register_model(sm, variant, image_uri, role_arn)
-        production_variants.append({
-            "VariantName": variant["variant_name"],
-            "ModelName": variant["model_name"],
-            "InitialInstanceCount": variant["initial_instance_count"],
-            "InstanceType": variant["instance_type"],
-            "InitialVariantWeight": variant["initial_weight"],
-        })
+        production_variants.append(
+            {
+                "VariantName": variant["variant_name"],
+                "ModelName": variant["model_name"],
+                "InitialInstanceCount": variant["initial_instance_count"],
+                "InstanceType": variant["instance_type"],
+                "InitialVariantWeight": variant["initial_weight"],
+            }
+        )
 
     try:
         sm.create_endpoint_config(
@@ -135,11 +139,13 @@ def delete(cfg: dict) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Deploy AML scorer to SageMaker")
-    parser.add_argument("--config", type=Path, default=Path("deploy/canary_rollout.yaml"))
-    parser.add_argument("--promote", action="store_true",
-                        help="Shift 100%% traffic to Primary variant")
-    parser.add_argument("--delete", action="store_true",
-                        help="Tear down the endpoint")
+    parser.add_argument(
+        "--config", type=Path, default=Path("deploy/canary_rollout.yaml")
+    )
+    parser.add_argument(
+        "--promote", action="store_true", help="Shift 100%% traffic to Primary variant"
+    )
+    parser.add_argument("--delete", action="store_true", help="Tear down the endpoint")
     args = parser.parse_args()
 
     cfg = load_config(args.config)

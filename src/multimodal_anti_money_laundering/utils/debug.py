@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 # Interactive breakpoint — prefers ipdb, falls back to pdb
 # ---------------------------------------------------------------------------
 
+
 def set_trace() -> None:
     """Drop into an interactive debugger at the call site.
 
@@ -40,15 +41,18 @@ def set_trace() -> None:
 
     try:
         import ipdb  # type: ignore[import]
+
         ipdb.set_trace(context=10)
     except ImportError:
         import pdb
+
         pdb.set_trace()
 
 
 # ---------------------------------------------------------------------------
 # Remote debugger — VS Code / PyCharm attach inside Docker
 # ---------------------------------------------------------------------------
+
 
 def attach_remote_debugger(host: str = "0.0.0.0", port: int = 5678) -> None:
     """Start a debugpy server and block until a client attaches.
@@ -66,6 +70,7 @@ def attach_remote_debugger(host: str = "0.0.0.0", port: int = 5678) -> None:
         return
 
     import debugpy  # already in requirements.txt
+
     debugpy.listen((host, port))
     logger.info("debugpy listening on %s:%d — waiting for client...", host, port)
     debugpy.wait_for_client()
@@ -75,6 +80,7 @@ def attach_remote_debugger(host: str = "0.0.0.0", port: int = 5678) -> None:
 # ---------------------------------------------------------------------------
 # Tensor / array inspection helpers
 # ---------------------------------------------------------------------------
+
 
 def assert_tensor_shape(
     tensor: torch.Tensor | np.ndarray,
@@ -120,6 +126,7 @@ def check_for_nans(tensor: torch.Tensor | np.ndarray, name: str = "tensor") -> b
 # Model summary
 # ---------------------------------------------------------------------------
 
+
 def log_model_summary(model: Any, name: str = "model") -> None:
     """Log total and trainable parameter counts for a PyTorch model."""
     if not hasattr(model, "parameters"):
@@ -140,20 +147,23 @@ def log_model_summary(model: Any, name: str = "model") -> None:
 # Memory snapshot (Docker OOM helper)
 # ---------------------------------------------------------------------------
 
+
 def log_memory_usage(tag: str = "") -> None:
     """Log current process RSS and GPU memory (if available) for OOM diagnosis."""
     import os
+
     try:
         import psutil
+
         proc = psutil.Process(os.getpid())
-        rss_mb = proc.memory_info().rss / 1024 ** 2
+        rss_mb = proc.memory_info().rss / 1024**2
         logger.info("[mem%s] RSS: %.1f MB", f":{tag}" if tag else "", rss_mb)
     except ImportError:
         logger.debug("psutil not installed — skipping CPU memory log")
 
     if torch.cuda.is_available():
-        alloc = torch.cuda.memory_allocated() / 1024 ** 2
-        reserved = torch.cuda.memory_reserved() / 1024 ** 2
+        alloc = torch.cuda.memory_allocated() / 1024**2
+        reserved = torch.cuda.memory_reserved() / 1024**2
         logger.info(
             "[mem%s] GPU allocated: %.1f MB | reserved: %.1f MB",
             f":{tag}" if tag else "",

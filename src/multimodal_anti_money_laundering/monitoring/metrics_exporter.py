@@ -19,7 +19,13 @@ import json
 import logging
 from pathlib import Path
 
-from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry, generate_latest
+from prometheus_client import (
+    CollectorRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,9 +85,9 @@ latency_histogram = Histogram(
 # ---------------------------------------------------------------------------
 
 _METRICS_FILES = {
-    "bilstm":    Path("bilstm_metrics.json"),
+    "bilstm": Path("bilstm_metrics.json"),
     "graphsage": Path("graphsage_metrics.json"),
-    "baseline":  Path("models/baseline_metrics.json"),
+    "baseline": Path("models/baseline_metrics.json"),
 }
 
 
@@ -104,7 +110,11 @@ def load_model_metrics() -> None:
             recall_gauge.labels(branch=branch).set(
                 m.get("recall_fraud", m.get("recall", 0))
             )
-            logger.info("Loaded metrics for branch '%s': AUC-PR=%.4f", branch, m.get("auc_pr", 0))
+            logger.info(
+                "Loaded metrics for branch '%s': AUC-PR=%.4f",
+                branch,
+                m.get("auc_pr", 0),
+            )
         except Exception:
             logger.exception("Failed to load metrics from %s", path)
 

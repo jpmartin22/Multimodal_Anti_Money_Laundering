@@ -29,10 +29,10 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 # Default data paths — match DVC-tracked locations
-DEFAULT_GRAPH_FEATURES  = Path("data/processed/graph_features.npy")
-DEFAULT_SEQUENCES       = Path("data/processed/bilstm_sequences.npy")
-DEFAULT_LABELS          = Path("data/processed/bilstm_labels.npy")
-DEFAULT_MEMO_CSV        = Path("data/raw/memo_dataset.csv")
+DEFAULT_GRAPH_FEATURES = Path("data/processed/graph_features.npy")
+DEFAULT_SEQUENCES = Path("data/processed/bilstm_sequences.npy")
+DEFAULT_LABELS = Path("data/processed/bilstm_labels.npy")
+DEFAULT_MEMO_CSV = Path("data/raw/memo_dataset.csv")
 
 
 def main() -> None:
@@ -44,9 +44,9 @@ def main() -> None:
         help="Which modality to run drift detection for (default: all)",
     )
     parser.add_argument("--graph-features", type=Path, default=DEFAULT_GRAPH_FEATURES)
-    parser.add_argument("--sequences",      type=Path, default=DEFAULT_SEQUENCES)
-    parser.add_argument("--labels",         type=Path, default=DEFAULT_LABELS)
-    parser.add_argument("--memo-csv",       type=Path, default=DEFAULT_MEMO_CSV)
+    parser.add_argument("--sequences", type=Path, default=DEFAULT_SEQUENCES)
+    parser.add_argument("--labels", type=Path, default=DEFAULT_LABELS)
+    parser.add_argument("--memo-csv", type=Path, default=DEFAULT_MEMO_CSV)
     args = parser.parse_args()
 
     if args.modality == "all":
