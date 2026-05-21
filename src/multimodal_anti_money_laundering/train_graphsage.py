@@ -45,6 +45,21 @@ import logging.handlers
 import os
 import time
 
+# REMOTE DEBUG: to attach VS Code to this process (local or inside Docker), set
+# DEBUGPY_ENABLE=1 before running, then use the "Attach to Docker container" launch config.
+#
+#   DEBUGPY_ENABLE=1 python train_graphsage.py --epochs 5 --max_nodes 8000
+#
+# Or inside Docker:
+#   docker run -e DEBUGPY_ENABLE=1 -p 5678:5678 aml-train python train_graphsage.py
+#
+if os.environ.get("DEBUGPY_ENABLE") == "1":
+    import debugpy  # noqa: T100
+
+    debugpy.listen(("0.0.0.0", 5678))
+    print("debugpy listening on port 5678 — waiting for VS Code to attach …")
+    debugpy.wait_for_client()
+
 import mlflow
 import numpy as np
 import torch
@@ -447,6 +462,9 @@ def train(args):
             # NaN guard
             if torch.isnan(loss):
                 logger.error(f"NaN loss at epoch {epoch} — stopping")
+                # DEBUG: uncomment to drop into an interactive debugger when NaN loss occurs.
+                # Inspect logits, labels, and pos_weight to find the root cause.
+                #   import ipdb; ipdb.set_trace()
                 raise ValueError("NaN loss detected")
 
             loss.backward()

@@ -12,6 +12,7 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting_started.md
+  - Debugging Guide: debugging_guide.md
   - API Reference: api.md
 
 markdown_extensions:
