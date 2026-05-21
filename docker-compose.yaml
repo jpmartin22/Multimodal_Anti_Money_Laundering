@@ -62,6 +62,30 @@ services:
       retries: 3
       start_period: 15s
 
+  # ── Debug training service (remote debugpy attach on port 5678) ──────────
+  debug-train:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile
+    container_name: aml_debug_train
+    command: python -m multimodal_anti_money_laundering.train_model
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./mlruns:/app/mlruns
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - AML_DEBUG=1
+    ports:
+      - "5678:5678"
+    profiles:
+      - debug
+    stdin_open: true
+    tty: true
+
   # ── Prometheus metrics scraper ─────────────────────────────────────────────
   prometheus:
     image: prom/prometheus:latest
