@@ -11,7 +11,7 @@
 
 endpoint_name: aml-scorer-prod
 region: us-east-1
-
+_
 # ECR image URI — set AWS_ACCOUNT_ID env var before running sagemaker_endpoint.py
 # export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 image_uri: "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/aml-scorer:latest"

@@ -19,9 +19,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from evidently.metric_preset import DataDriftPreset
-from evidently.metrics import ColumnDriftMetric
-from evidently.report import Report
+from evidently.legacy.metric_preset import DataDriftPreset
+from evidently.legacy.metrics import ColumnDriftMetric
+from evidently.legacy.report import Report
 
 logger = logging.getLogger(__name__)
 
