@@ -5,3 +5,4 @@ mypy>=1.11
 pre-commit>=3.8
 ipdb>=0.13
 debugpy>=1.8
+psutil>=5.9
