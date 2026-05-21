@@ -61,18 +61,25 @@ SAMPLE_PAYLOAD = {
     "transaction_id": "exp-tx-001",
     "graph": {"node_features": [0.1] * 166},
     "memo_text": "consulting services invoice Q1 wire transfer payment",
-    "time_series": {
-        "window": [[100.0, 14.0, 2.0, 1.0, 500.0]] * 10
-    },
+    "time_series": {"window": [[100.0, 14.0, 2.0, 1.0, 500.0]] * 10},
 }
 
 EXPERIMENTS = [
-    {"name": "conservative", "threshold": 0.30,
-     "description": "Low threshold — high sensitivity, catches more potential fraud"},
-    {"name": "balanced",     "threshold": 0.50,
-     "description": "Default production threshold — balanced precision/recall"},
-    {"name": "strict",       "threshold": 0.70,
-     "description": "High threshold — fewer flags, lower false-positive rate"},
+    {
+        "name": "conservative",
+        "threshold": 0.30,
+        "description": "Low threshold — high sensitivity, catches more potential fraud",
+    },
+    {
+        "name": "balanced",
+        "threshold": 0.50,
+        "description": "Default production threshold — balanced precision/recall",
+    },
+    {
+        "name": "strict",
+        "threshold": 0.70,
+        "description": "High threshold — fewer flags, lower false-positive rate",
+    },
 ]
 
 SLA_TARGET_MS = 200.0
@@ -81,6 +88,7 @@ SLA_TARGET_MS = 200.0
 def run_requests(client: TestClient, threshold: float, n: int) -> dict:
     """Send N /predict requests with the given threshold override and collect metrics."""
     import multimodal_anti_money_laundering.serving.api as api_module
+
     original_threshold = api_module._THRESHOLD
     api_module._THRESHOLD = threshold
 
@@ -107,17 +115,17 @@ def run_requests(client: TestClient, threshold: float, n: int) -> dict:
     p95 = float(np.percentile(arr, 95))
 
     return {
-        "mean_ms":        round(float(arr.mean()), 3),
-        "std_ms":         round(float(arr.std()), 3),
-        "min_ms":         round(float(arr.min()), 3),
-        "p50_ms":         round(float(np.percentile(arr, 50)), 3),
-        "p95_ms":         round(p95, 3),
-        "p99_ms":         round(float(np.percentile(arr, 99)), 3),
-        "max_ms":         round(float(arr.max()), 3),
+        "mean_ms": round(float(arr.mean()), 3),
+        "std_ms": round(float(arr.std()), 3),
+        "min_ms": round(float(arr.min()), 3),
+        "p50_ms": round(float(np.percentile(arr, 50)), 3),
+        "p95_ms": round(p95, 3),
+        "p99_ms": round(float(np.percentile(arr, 99)), 3),
+        "max_ms": round(float(arr.max()), 3),
         "throughput_rps": round(n / (arr.sum() / 1000), 2),
-        "flagged_rate":   round(flagged_count / n, 4),
-        "sla_passed":     p95 < SLA_TARGET_MS,
-        "n_requests":     n,
+        "flagged_rate": round(flagged_count / n, 4),
+        "sla_passed": p95 < SLA_TARGET_MS,
+        "n_requests": n,
     }
 
 
@@ -131,31 +139,33 @@ def run_all_experiments(n: int = 300) -> list[dict]:
     for exp in EXPERIMENTS:
         logger.info(
             "Running experiment '%s' (threshold=%.2f, n=%d)...",
-            exp["name"], exp["threshold"], n,
+            exp["name"],
+            exp["threshold"],
+            n,
         )
 
         with mlflow.start_run(run_name=exp["name"]):
             mlflow.set_tag("description", exp["description"])
-            mlflow.log_param("threshold",    exp["threshold"])
-            mlflow.log_param("n_requests",   n)
+            mlflow.log_param("threshold", exp["threshold"])
+            mlflow.log_param("n_requests", n)
             mlflow.log_param("sla_target_ms", SLA_TARGET_MS)
 
             metrics = run_requests(client, exp["threshold"], n)
 
-            mlflow.log_metric("mean_latency_ms",   metrics["mean_ms"])
-            mlflow.log_metric("std_latency_ms",    metrics["std_ms"])
-            mlflow.log_metric("p50_latency_ms",    metrics["p50_ms"])
-            mlflow.log_metric("p95_latency_ms",    metrics["p95_ms"])
-            mlflow.log_metric("p99_latency_ms",    metrics["p99_ms"])
-            mlflow.log_metric("max_latency_ms",    metrics["max_ms"])
-            mlflow.log_metric("throughput_rps",    metrics["throughput_rps"])
-            mlflow.log_metric("flagged_rate",      metrics["flagged_rate"])
-            mlflow.log_metric("sla_passed",        int(metrics["sla_passed"]))
+            mlflow.log_metric("mean_latency_ms", metrics["mean_ms"])
+            mlflow.log_metric("std_latency_ms", metrics["std_ms"])
+            mlflow.log_metric("p50_latency_ms", metrics["p50_ms"])
+            mlflow.log_metric("p95_latency_ms", metrics["p95_ms"])
+            mlflow.log_metric("p99_latency_ms", metrics["p99_ms"])
+            mlflow.log_metric("max_latency_ms", metrics["max_ms"])
+            mlflow.log_metric("throughput_rps", metrics["throughput_rps"])
+            mlflow.log_metric("flagged_rate", metrics["flagged_rate"])
+            mlflow.log_metric("sla_passed", int(metrics["sla_passed"]))
 
         row = {
-            "experiment":     exp["name"],
-            "threshold":      exp["threshold"],
-            "description":    exp["description"],
+            "experiment": exp["name"],
+            "threshold": exp["threshold"],
+            "description": exp["description"],
             **metrics,
         }
         results.append(row)
@@ -173,12 +183,19 @@ def run_all_experiments(n: int = 300) -> list[dict]:
 
 def save_comparison_table(results: list[dict]) -> None:
     csv_path = os.path.join(OUTPUT_DIR, "serving_experiment_comparison.csv")
-    md_path  = os.path.join(OUTPUT_DIR, "serving_experiment_comparison.md")
+    md_path = os.path.join(OUTPUT_DIR, "serving_experiment_comparison.md")
 
     columns = [
-        "experiment", "threshold", "mean_ms", "std_ms",
-        "p50_ms", "p95_ms", "p99_ms", "throughput_rps",
-        "flagged_rate", "sla_passed",
+        "experiment",
+        "threshold",
+        "mean_ms",
+        "std_ms",
+        "p50_ms",
+        "p95_ms",
+        "p99_ms",
+        "throughput_rps",
+        "flagged_rate",
+        "sla_passed",
     ]
 
     # CSV
@@ -190,8 +207,8 @@ def save_comparison_table(results: list[dict]) -> None:
 
     # Markdown table
     header = "| " + " | ".join(columns) + " |"
-    sep    = "| " + " | ".join(["---"] * len(columns)) + " |"
-    rows   = []
+    sep = "| " + " | ".join(["---"] * len(columns)) + " |"
+    rows = []
     for r in results:
         sla = "✓" if r["sla_passed"] else "✗"
         vals = [
@@ -203,7 +220,7 @@ def save_comparison_table(results: list[dict]) -> None:
             f"{r['p95_ms']:.2f}",
             f"{r['p99_ms']:.2f}",
             f"{r['throughput_rps']:.1f}",
-            f"{r['flagged_rate']*100:.1f}%",
+            f"{r['flagged_rate'] * 100:.1f}%",
             sla,
         ]
         rows.append("| " + " | ".join(vals) + " |")
@@ -213,7 +230,7 @@ def save_comparison_table(results: list[dict]) -> None:
         f.write(f"MLflow experiment: `{EXPERIMENT_NAME}`  \n")
         f.write(f"SLA target: P95 < {SLA_TARGET_MS} ms\n\n")
         f.write(header + "\n")
-        f.write(sep    + "\n")
+        f.write(sep + "\n")
         f.write("\n".join(rows) + "\n")
 
     logger.info("Markdown saved → %s", md_path)
@@ -223,8 +240,18 @@ def save_comparison_table(results: list[dict]) -> None:
     print("AML Serving API — Experiment Comparison (3 runs)")
     print("=" * 70)
     col_w = [15, 10, 9, 9, 9, 9, 9, 15, 13, 10]
-    hdrs  = ["Experiment", "Threshold", "Mean ms", "Std ms",
-             "P50 ms", "P95 ms", "P99 ms", "Throughput", "Flagged %", "SLA"]
+    hdrs = [
+        "Experiment",
+        "Threshold",
+        "Mean ms",
+        "Std ms",
+        "P50 ms",
+        "P95 ms",
+        "P99 ms",
+        "Throughput",
+        "Flagged %",
+        "SLA",
+    ]
     print("  ".join(h.ljust(w) for h, w in zip(hdrs, col_w)))
     print("  ".join("-" * w for w in col_w))
     for r in results:
@@ -238,12 +265,12 @@ def save_comparison_table(results: list[dict]) -> None:
             f"{r['p95_ms']:.2f}",
             f"{r['p99_ms']:.2f}",
             f"{r['throughput_rps']:.1f} req/s",
-            f"{r['flagged_rate']*100:.1f}%",
+            f"{r['flagged_rate'] * 100:.1f}%",
             sla,
         ]
         print("  ".join(v.ljust(w) for v, w in zip(vals, col_w)))
     print("=" * 70)
-    print(f"\nMLflow UI: mlflow ui --backend-store-uri mlruns\n")
+    print("\nMLflow UI: mlflow ui --backend-store-uri mlruns\n")
 
 
 def main() -> None:
@@ -251,8 +278,10 @@ def main() -> None:
         description="Run 3 serving API experiments and compare with MLflow"
     )
     parser.add_argument(
-        "--n-requests", type=int, default=300,
-        help="Requests per experiment run (default: 300)"
+        "--n-requests",
+        type=int,
+        default=300,
+        help="Requests per experiment run (default: 300)",
     )
     args = parser.parse_args()
 

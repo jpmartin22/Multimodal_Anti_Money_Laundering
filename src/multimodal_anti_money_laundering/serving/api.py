@@ -22,7 +22,10 @@ from multimodal_anti_money_laundering.monitoring.metrics_exporter import (
     load_model_metrics,
     predictions_counter,
 )
-from multimodal_anti_money_laundering.serving.schemas import PredictRequest, PredictResponse
+from multimodal_anti_money_laundering.serving.schemas import (
+    PredictRequest,
+    PredictResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +60,9 @@ def invocations(request: PredictRequest) -> PredictResponse:
 
 @app.get("/metrics")
 def metrics() -> Response:
-    return Response(content=get_metrics_output(), media_type="text/plain; version=0.0.4")
+    return Response(
+        content=get_metrics_output(), media_type="text/plain; version=0.0.4"
+    )
 
 
 @app.post("/predict", response_model=PredictResponse)

@@ -19,9 +19,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from evidently.metric_preset import DataDriftPreset
-from evidently.metrics import ColumnDriftMetric
-from evidently.report import Report
+from evidently.legacy.metric_preset import DataDriftPreset
+from evidently.legacy.metrics import ColumnDriftMetric
+from evidently.legacy.report import Report
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,7 @@ def _save_report(report: Report, name: str) -> Path:
 # Modality 1 — Graph features (PSI)
 # ---------------------------------------------------------------------------
 
+
 def graph_drift_report(graph_features_path: Path) -> Path:
     """PSI drift report on Elliptic node features (166-dim)."""
     logger.info("Running graph feature drift report (PSI)...")
@@ -57,10 +58,7 @@ def graph_drift_report(graph_features_path: Path) -> Path:
     reference, current = _split_reference_current(df)
 
     # PSI on every feature column
-    psi_metrics = [
-        ColumnDriftMetric(column_name=col, stattest="psi")
-        for col in cols
-    ]
+    psi_metrics = [ColumnDriftMetric(column_name=col, stattest="psi") for col in cols]
     report = Report(metrics=[DataDriftPreset(stattest="psi")] + psi_metrics)
     report.run(reference_data=reference, current_data=current)
 
@@ -71,32 +69,34 @@ def graph_drift_report(graph_features_path: Path) -> Path:
 # Modality 2 — Behavioral time-series (KS test)
 # ---------------------------------------------------------------------------
 
+
 def timeseries_drift_report(sequences_path: Path, labels_path: Path) -> Path:
     """KS drift report on BiLSTM window summary statistics."""
     logger.info("Running time-series drift report (KS)...")
 
-    sequences = np.load(sequences_path)   # shape: (N_windows, seq_len, n_features)
-    labels = np.load(labels_path)         # shape: (N_windows,)
+    sequences = np.load(sequences_path)  # shape: (N_windows, seq_len, n_features)
+    labels = np.load(labels_path)  # shape: (N_windows,)
 
     # Summarise each window to scalar stats — keeps Evidently in tabular mode
-    df = pd.DataFrame({
-        "amount_mean":    sequences[:, :, 0].mean(axis=1),
-        "amount_std":     sequences[:, :, 0].std(axis=1),
-        "amount_max":     sequences[:, :, 0].max(axis=1),
-        "hour_mean":      sequences[:, :, 1].mean(axis=1),
-        "day_of_week_mode": sequences[:, :, 2].mean(axis=1),
-        "tx_type_mean":   sequences[:, :, 3].mean(axis=1),
-        "velocity_mean":  sequences[:, :, 4].mean(axis=1),
-        "velocity_max":   sequences[:, :, 4].max(axis=1),
-        "label":          labels,
-    })
+    df = pd.DataFrame(
+        {
+            "amount_mean": sequences[:, :, 0].mean(axis=1),
+            "amount_std": sequences[:, :, 0].std(axis=1),
+            "amount_max": sequences[:, :, 0].max(axis=1),
+            "hour_mean": sequences[:, :, 1].mean(axis=1),
+            "day_of_week_mode": sequences[:, :, 2].mean(axis=1),
+            "tx_type_mean": sequences[:, :, 3].mean(axis=1),
+            "velocity_mean": sequences[:, :, 4].mean(axis=1),
+            "velocity_max": sequences[:, :, 4].max(axis=1),
+            "label": labels,
+        }
+    )
 
     reference, current = _split_reference_current(df)
 
     feature_cols = [c for c in df.columns if c != "label"]
     ks_metrics = [
-        ColumnDriftMetric(column_name=col, stattest="ks")
-        for col in feature_cols
+        ColumnDriftMetric(column_name=col, stattest="ks") for col in feature_cols
     ]
     report = Report(metrics=[DataDriftPreset(stattest="ks")] + ks_metrics)
     report.run(reference_data=reference, current_data=current)
@@ -107,6 +107,7 @@ def timeseries_drift_report(sequences_path: Path, labels_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 # Modality 3 — Payment memo text (wasserstein proxy for cosine)
 # ---------------------------------------------------------------------------
+
 
 def text_drift_report(memo_csv_path: Path) -> Path:
     """Text statistics drift report (proxy until DistilBERT embeddings available).
@@ -126,24 +127,33 @@ def text_drift_report(memo_csv_path: Path) -> Path:
 
     # Detect the memo text column — try common names
     text_col = next(
-        (c for c in df_raw.columns if c.lower() in ("memo", "text", "description", "memo_text")),
+        (
+            c
+            for c in df_raw.columns
+            if c.lower() in ("memo", "text", "description", "memo_text")
+        ),
         df_raw.columns[0],
     )
     texts = df_raw[text_col].fillna("").astype(str)
 
-    df = pd.DataFrame({
-        "char_len":     texts.str.len(),
-        "word_count":   texts.str.split().str.len(),
-        "unique_words": texts.apply(lambda t: len(set(t.lower().split()))),
-        "digit_ratio":  texts.apply(lambda t: sum(c.isdigit() for c in t) / max(len(t), 1)),
-        "upper_ratio":  texts.apply(lambda t: sum(c.isupper() for c in t) / max(len(t), 1)),
-    })
+    df = pd.DataFrame(
+        {
+            "char_len": texts.str.len(),
+            "word_count": texts.str.split().str.len(),
+            "unique_words": texts.apply(lambda t: len(set(t.lower().split()))),
+            "digit_ratio": texts.apply(
+                lambda t: sum(c.isdigit() for c in t) / max(len(t), 1)
+            ),
+            "upper_ratio": texts.apply(
+                lambda t: sum(c.isupper() for c in t) / max(len(t), 1)
+            ),
+        }
+    )
 
     reference, current = _split_reference_current(df)
 
     text_metrics = [
-        ColumnDriftMetric(column_name=col, stattest="wasserstein")
-        for col in df.columns
+        ColumnDriftMetric(column_name=col, stattest="wasserstein") for col in df.columns
     ]
     report = Report(metrics=[DataDriftPreset(stattest="wasserstein")] + text_metrics)
     report.run(reference_data=reference, current_data=current)
@@ -154,6 +164,7 @@ def text_drift_report(memo_csv_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 # Run all three modalities together
 # ---------------------------------------------------------------------------
+
 
 def run_all_drift_reports(
     graph_features_path: Path,

@@ -12,7 +12,7 @@ authors = [
     {name = "Preshita Soni", email = "psoni7@depaul.edu"},
     {name = "Rajani Meka", email = "rmeka1@depaul.edu"},
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 dependencies = [
     # Core
@@ -62,10 +62,22 @@ dev = [
 [tool.ruff]
 line-length = 88
 target-version = "py311"
+exclude = [
+    "notebooks/",
+    "data/make_dataset.py",
+    ".venv/",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "B", "UP"]
-ignore = ["N806", "N803", "E501"]
+ignore = [
+    "N806",   # variable in function should be lowercase (common in ML: X, y)
+    "N803",   # argument name should be lowercase
+    "E501",   # line too long (handled by formatter)
+    "N812",   # torch.nn.functional as F is universal PyTorch convention
+    "B905",   # zip() strict= not required for our use cases
+    "B007",   # loop variable not used (common in enumerate patterns)
+]
 
 [tool.mypy]
 python_version = "3.11"

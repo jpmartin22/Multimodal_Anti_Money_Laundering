@@ -62,9 +62,9 @@ RANDOM_SEED = 42
 
 
 def load_raw(data_dir: str):
-    print(f"\n{'='*58}")
+    print(f"\n{'=' * 58}")
     print("  STEP 1 — Loading raw Elliptic files")
-    print(f"{'='*58}")
+    print(f"{'=' * 58}")
 
     feat_path = os.path.join(data_dir, "elliptic_txs_features.csv")
     cls_path = os.path.join(data_dir, "elliptic_txs_classes.csv")
@@ -72,16 +72,14 @@ def load_raw(data_dir: str):
 
     for p in [feat_path, cls_path, edge_path]:
         if not os.path.exists(p):
-            raise FileNotFoundError(
-                f"Missing file: {p}\n" f"Expected inside: {data_dir}"
-            )
+            raise FileNotFoundError(f"Missing file: {p}\nExpected inside: {data_dir}")
 
     # Features — NO header in this file
     print("  Loading features (no header)...")
     df_feat = pd.read_csv(feat_path, header=None)
     # Rename for clarity
     df_feat.columns = ["txId", "time_step"] + [f"f{i}" for i in range(N_FEATURES)]
-    print(f"  Features shape   : {df_feat.shape}  " f"(expected ~203K rows × 167 cols)")
+    print(f"  Features shape   : {df_feat.shape}  (expected ~203K rows × 167 cols)")
 
     # Classes
     print("  Loading classes...")
@@ -105,9 +103,9 @@ def load_raw(data_dir: str):
 
 
 def merge_and_filter(df_feat, df_cls):
-    print(f"\n{'='*58}")
+    print(f"\n{'=' * 58}")
     print("  STEP 2 — Merging features with labels")
-    print(f"{'='*58}")
+    print(f"{'=' * 58}")
 
     df = df_feat.merge(df_cls, on="txId", how="left")
     df["label"] = df["label"].fillna("unknown")
@@ -118,9 +116,9 @@ def merge_and_filter(df_feat, df_cls):
     n_unknown = (df["label"] == "unknown").sum()
 
     print(f"  Total nodes      : {total:>10,}")
-    print(f"  Illicit (1)      : {n_illicit:>10,}  ({n_illicit/total*100:.1f}%)")
-    print(f"  Licit   (2)      : {n_licit:>10,}  ({n_licit/total*100:.1f}%)")
-    print(f"  Unknown          : {n_unknown:>10,}  ({n_unknown/total*100:.1f}%)")
+    print(f"  Illicit (1)      : {n_illicit:>10,}  ({n_illicit / total * 100:.1f}%)")
+    print(f"  Licit   (2)      : {n_licit:>10,}  ({n_licit / total * 100:.1f}%)")
+    print(f"  Unknown          : {n_unknown:>10,}  ({n_unknown / total * 100:.1f}%)")
 
     # Convert label: 1 → 1 (illicit), 2 → 0 (licit), unknown → -1
     label_map = {"1": 1, "2": 0, "unknown": -1}
@@ -131,7 +129,7 @@ def merge_and_filter(df_feat, df_cls):
     print(f"\n  Labeled nodes kept : {len(df_labeled):>8,}")
     print(
         f"  Illicit rate       : "
-        f"{df_labeled['label_int'].mean()*100:.2f}%  "
+        f"{df_labeled['label_int'].mean() * 100:.2f}%  "
         f"(~2% expected)"
     )
 
@@ -148,9 +146,9 @@ def scale_features(df_all, df_labeled):
     Fit StandardScaler on ALL labeled nodes' features.
     Apply to all nodes (needed for behavioral sequences).
     """
-    print(f"\n{'='*58}")
+    print(f"\n{'=' * 58}")
     print("  STEP 3 — Scaling features")
-    print(f"{'='*58}")
+    print(f"{'=' * 58}")
 
     feat_cols = [f"f{i}" for i in range(N_FEATURES)]
     scaler = StandardScaler()
@@ -176,9 +174,9 @@ def scale_features(df_all, df_labeled):
 
 
 def build_graph_outputs(df_labeled, df_edge, feat_cols):
-    print(f"\n{'='*58}")
+    print(f"\n{'=' * 58}")
     print("  STEP 4 — Building graph outputs (Member A)")
-    print(f"{'='*58}")
+    print(f"{'=' * 58}")
 
     # Node features + labels
     X = df_labeled[feat_cols].values.astype(np.float32)  # (N, 165)
@@ -201,7 +199,7 @@ def build_graph_outputs(df_labeled, df_edge, feat_cols):
     print(f"  Node features shape : {X.shape}")
     print(f"  Labels shape        : {y.shape}")
     print(f"  Edge index shape    : {edge_index.shape}")
-    print(f"  Illicit nodes       : {y.sum():,}  ({y.mean()*100:.2f}%)")
+    print(f"  Illicit nodes       : {y.sum():,}  ({y.mean() * 100:.2f}%)")
 
     return X, y, edge_index, node_ids
 
@@ -226,9 +224,9 @@ def build_bilstm_sequences(df_all, df_labeled, feat_cols):
 
     Shape: (N_labeled, 49, 165)
     """
-    print(f"\n{'='*58}")
+    print(f"\n{'=' * 58}")
     print("  STEP 5 — Building BiLSTM sequences (Member B)")
-    print(f"{'='*58}")
+    print(f"{'=' * 58}")
 
     feat_cols_arr = [f"f{i}" for i in range(N_FEATURES)]
     N = len(df_labeled)
@@ -243,12 +241,10 @@ def build_bilstm_sequences(df_all, df_labeled, feat_cols):
 
     labels = df_labeled["label_int"].values.astype(np.int64)
 
-    print(
-        f"  Sequences shape  : {sequences.shape}  " f"(nodes × time_steps × features)"
-    )
+    print(f"  Sequences shape  : {sequences.shape}  (nodes × time_steps × features)")
     print(f"  Labels shape     : {labels.shape}")
     print("  Non-zero steps   : each node has exactly 1 active time step")
-    print(f"  Illicit rate     : {labels.mean()*100:.2f}%")
+    print(f"  Illicit rate     : {labels.mean() * 100:.2f}%")
     print("\n  Time step distribution of labeled nodes:")
     step_counts = df_labeled["time_step"].value_counts().sort_index()
     print(f"    Min step : {step_counts.index.min()}")
@@ -311,9 +307,9 @@ def save_outputs(
         json.dump(stats, f, indent=2)
 
     # ── Summary ───────────────────────────────────────────────────────────────
-    print(f"\n{'='*58}")
+    print(f"\n{'=' * 58}")
     print(f"  ALL OUTPUTS SAVED → {output_dir}/")
-    print(f"{'='*58}")
+    print(f"{'=' * 58}")
     print("\n  FOR MEMBER A (GraphSAGE):")
     print(f"    graph_features.npy   : {graph_X.shape}")
     print(f"    graph_labels.npy     : {graph_y.shape}")
@@ -324,9 +320,9 @@ def save_outputs(
     print(f"    bilstm_labels.npy    : {bilstm_y.shape}")
     print("\n  SHARED:")
     print("    elliptic_stats.json  : dataset stats")
-    print(f"\n  Illicit rate : {graph_y.mean()*100:.2f}%")
-    print(f"  Edges kept   : {edge_index.shape[1]:,} " f"(both endpoints labeled)")
-    print(f"{'='*58}\n")
+    print(f"\n  Illicit rate : {graph_y.mean() * 100:.2f}%")
+    print(f"  Edges kept   : {edge_index.shape[1]:,} (both endpoints labeled)")
+    print(f"{'=' * 58}\n")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

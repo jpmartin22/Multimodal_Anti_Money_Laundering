@@ -66,7 +66,7 @@ def load_data(csv_path: str, max_samples: int | None = None) -> pd.DataFrame:
 
     print(
         f"Loaded {len(df):,} rows  |  "
-        f"illicit: {df['is_illicit'].sum():,} ({df['is_illicit'].mean()*100:.1f}%)"
+        f"illicit: {df['is_illicit'].sum():,} ({df['is_illicit'].mean() * 100:.1f}%)"
     )
     return df
 

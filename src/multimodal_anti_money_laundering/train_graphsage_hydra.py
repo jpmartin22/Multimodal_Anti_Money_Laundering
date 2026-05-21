@@ -104,9 +104,9 @@ def setup_logger(log_file: str) -> logging.Logger:
 
 def load_graph(cfg: DictConfig, logger: logging.Logger):
     logger.info(f"Loading graph — features: {cfg.data.features_path}")
-    features   = np.load(cfg.data.features_path).astype(np.float32)
+    features = np.load(cfg.data.features_path).astype(np.float32)
     edge_index = np.load(cfg.data.edge_index_path)
-    labels     = np.load(cfg.data.labels_path)
+    labels = np.load(cfg.data.labels_path)
 
     max_nodes = cfg.training.get("max_nodes", None)
     if max_nodes and max_nodes < len(features):
@@ -114,16 +114,20 @@ def load_graph(cfg: DictConfig, logger: logging.Logger):
         idx_legit = np.where(labels == 0)[0]
         n_fraud = min(len(idx_fraud), max(1, int(max_nodes * labels.mean())))
         n_legit = max_nodes - n_fraud
-        keep = np.concatenate([
-            np.random.choice(idx_fraud, n_fraud, replace=False),
-            np.random.choice(idx_legit, n_legit, replace=False),
-        ])
+        keep = np.concatenate(
+            [
+                np.random.choice(idx_fraud, n_fraud, replace=False),
+                np.random.choice(idx_legit, n_legit, replace=False),
+            ]
+        )
         keep_set = set(keep.tolist())
         old_to_new = {old: new for new, old in enumerate(keep)}
-        mask = np.array([
-            s in keep_set and d in keep_set
-            for s, d in zip(edge_index[0], edge_index[1])
-        ])
+        mask = np.array(
+            [
+                s in keep_set and d in keep_set
+                for s, d in zip(edge_index[0], edge_index[1])
+            ]
+        )
         ei = edge_index[:, mask]
         ei = np.array([[old_to_new[v] for v in ei[0]], [old_to_new[v] for v in ei[1]]])
         features, labels, edge_index = features[keep], labels[keep], ei
@@ -132,7 +136,7 @@ def load_graph(cfg: DictConfig, logger: logging.Logger):
     logger.info(
         f"Graph loaded — nodes: {len(features):,} | "
         f"edges: {edge_index.shape[1]:,} | "
-        f"fraud: {labels.mean()*100:.2f}%"
+        f"fraud: {labels.mean() * 100:.2f}%"
     )
     return features, edge_index, labels
 
@@ -140,20 +144,18 @@ def load_graph(cfg: DictConfig, logger: logging.Logger):
 def build_masks(labels, cfg, logger):
     idx = np.arange(len(labels))
     idx_tv, idx_test = train_test_split(
-        idx, test_size=cfg.data.test_size,
-        stratify=labels, random_state=cfg.data.seed
+        idx, test_size=cfg.data.test_size, stratify=labels, random_state=cfg.data.seed
     )
     val_frac = cfg.data.val_size / (1 - cfg.data.test_size)
     idx_train, idx_val = train_test_split(
-        idx_tv, test_size=val_frac,
-        stratify=labels[idx_tv], random_state=cfg.data.seed
+        idx_tv, test_size=val_frac, stratify=labels[idx_tv], random_state=cfg.data.seed
     )
     train_mask = torch.zeros(len(labels), dtype=torch.bool)
-    val_mask   = torch.zeros(len(labels), dtype=torch.bool)
-    test_mask  = torch.zeros(len(labels), dtype=torch.bool)
+    val_mask = torch.zeros(len(labels), dtype=torch.bool)
+    test_mask = torch.zeros(len(labels), dtype=torch.bool)
     train_mask[idx_train] = True
-    val_mask[idx_val]     = True
-    test_mask[idx_test]   = True
+    val_mask[idx_val] = True
+    test_mask[idx_test] = True
     logger.info(
         f"Split — Train: {train_mask.sum():,} | "
         f"Val: {val_mask.sum():,} | Test: {test_mask.sum():,}"
@@ -170,7 +172,7 @@ def evaluate(model, data, mask, device):
     model.eval()
     with torch.no_grad():
         logits, _ = model(data.x.to(device), data.edge_index.to(device))
-        probs  = torch.sigmoid(logits[mask]).cpu().numpy()
+        probs = torch.sigmoid(logits[mask]).cpu().numpy()
         labels = data.y[mask].cpu().numpy()
 
     auc_pr = average_precision_score(labels, probs)
@@ -178,19 +180,19 @@ def evaluate(model, data, mask, device):
     f1s = 2 * prec * recall / (prec + recall + 1e-8)
     best = np.argmax(f1s[:-1])
     thresh = float(thresholds[best])
-    preds  = (probs >= thresh).astype(int)
-    idx80  = np.searchsorted(recall[::-1], 0.8)
-    p80    = float(prec[::-1][idx80]) if idx80 < len(prec) else 0.0
+    preds = (probs >= thresh).astype(int)
+    idx80 = np.searchsorted(recall[::-1], 0.8)
+    p80 = float(prec[::-1][idx80]) if idx80 < len(prec) else 0.0
     report = classification_report(labels, preds, output_dict=True, zero_division=0)
     return {
-        "auc_pr"            : round(float(auc_pr), 4),
-        "prec_at_recall_80" : round(p80, 4),
-        "f1_fraud"          : round(report.get("1", {}).get("f1-score", 0), 4),
-        "recall_fraud"      : round(report.get("1", {}).get("recall", 0), 4),
-        "precision_fraud"   : round(report.get("1", {}).get("precision", 0), 4),
+        "auc_pr": round(float(auc_pr), 4),
+        "prec_at_recall_80": round(p80, 4),
+        "f1_fraud": round(report.get("1", {}).get("f1-score", 0), 4),
+        "recall_fraud": round(report.get("1", {}).get("recall", 0), 4),
+        "precision_fraud": round(report.get("1", {}).get("precision", 0), 4),
         "false_positive_rate": round(1 - report.get("0", {}).get("recall", 1.0), 4),
-        "accuracy"          : round(report.get("accuracy", 0), 4),
-        "optimal_threshold" : round(thresh, 4),
+        "accuracy": round(report.get("accuracy", 0), 4),
+        "optimal_threshold": round(thresh, 4),
     }
 
 
@@ -222,14 +224,14 @@ def main(cfg: DictConfig) -> None:
     train_mask, val_mask, test_mask, y_train = build_masks(labels, cfg, logger)
 
     data = Data(
-        x          = torch.tensor(features, dtype=torch.float32),
-        edge_index = torch.tensor(edge_index, dtype=torch.long),
-        y          = torch.tensor(labels, dtype=torch.float32),
+        x=torch.tensor(features, dtype=torch.float32),
+        edge_index=torch.tensor(edge_index, dtype=torch.long),
+        y=torch.tensor(labels, dtype=torch.float32),
     ).to(device)
 
     train_mask = train_mask.to(device)
-    val_mask   = val_mask.to(device)
-    test_mask  = test_mask.to(device)
+    val_mask = val_mask.to(device)
+    test_mask = test_mask.to(device)
 
     n_neg, n_pos = (y_train == 0).sum(), (y_train == 1).sum()
     pos_weight = torch.tensor([n_neg / max(n_pos, 1)], dtype=torch.float32).to(device)
@@ -237,10 +239,10 @@ def main(cfg: DictConfig) -> None:
 
     # ── Model ─────────────────────────────────────────────────────────────────
     model = GraphSAGEClassifier(
-        in_channels     = cfg.model.in_channels,
-        hidden_channels = cfg.model.hidden_channels,
-        embedding_dim   = cfg.model.embedding_dim,
-        dropout         = cfg.model.dropout,
+        in_channels=cfg.model.in_channels,
+        hidden_channels=cfg.model.hidden_channels,
+        embedding_dim=cfg.model.embedding_dim,
+        dropout=cfg.model.dropout,
     ).to(device)
 
     criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
@@ -274,8 +276,8 @@ def main(cfg: DictConfig) -> None:
 
         os.makedirs(cfg.training.model_dir, exist_ok=True)
         best_val_auc = 0.0
-        best_epoch   = 0
-        train_start  = time.time()
+        best_epoch = 0
+        train_start = time.time()
 
         for epoch in range(1, cfg.training.epochs + 1):
             model.train()
@@ -292,11 +294,14 @@ def main(cfg: DictConfig) -> None:
                 val_m = evaluate(model, data, val_mask, device)
                 scheduler.step(val_m["auc_pr"])
 
-                mlflow.log_metrics({
-                    "train_loss"   : round(loss.item(), 4),
-                    "val_auc_pr"   : val_m["auc_pr"],
-                    "val_f1_fraud" : val_m["f1_fraud"],
-                }, step=epoch)
+                mlflow.log_metrics(
+                    {
+                        "train_loss": round(loss.item(), 4),
+                        "val_auc_pr": val_m["auc_pr"],
+                        "val_f1_fraud": val_m["f1_fraud"],
+                    },
+                    step=epoch,
+                )
 
                 logger.info(
                     f"Epoch {epoch:3d}/{cfg.training.epochs} | "
@@ -307,14 +312,14 @@ def main(cfg: DictConfig) -> None:
 
                 if val_m["auc_pr"] > best_val_auc:
                     best_val_auc = val_m["auc_pr"]
-                    best_epoch   = epoch
+                    best_epoch = epoch
                     torch.save(
                         model.state_dict(),
-                        f"{cfg.training.model_dir}/graphsage_best.pt"
+                        f"{cfg.training.model_dir}/graphsage_best.pt",
                     )
                     torch.save(
                         model.encoder.state_dict(),
-                        f"{cfg.training.model_dir}/graphsage_encoder.pt"
+                        f"{cfg.training.model_dir}/graphsage_encoder.pt",
                     )
                     logger.info(f"  -> New best: {best_val_auc:.4f} - saved")
 
@@ -324,9 +329,9 @@ def main(cfg: DictConfig) -> None:
                 f"{cfg.training.model_dir}/graphsage_best.pt", map_location=device
             )
         )
-        val_metrics  = evaluate(model, data, val_mask, device)
+        val_metrics = evaluate(model, data, val_mask, device)
         test_metrics = evaluate(model, data, test_mask, device)
-        total_min    = (time.time() - train_start) / 60
+        total_min = (time.time() - train_start) / 60
 
         mlflow.log_metrics({f"val_{k}": v for k, v in val_metrics.items()})
         mlflow.log_metrics({f"test_{k}": v for k, v in test_metrics.items()})
@@ -334,7 +339,9 @@ def main(cfg: DictConfig) -> None:
         mlflow.log_metric("best_epoch", best_epoch)
 
         logger.info("=" * 60)
-        logger.info(f"Training complete in {total_min:.1f} min | Best epoch: {best_epoch}")
+        logger.info(
+            f"Training complete in {total_min:.1f} min | Best epoch: {best_epoch}"
+        )
         logger.info(
             f"Val  AUC-PR: {val_metrics['auc_pr']:.4f} | "
             f"F1: {val_metrics['f1_fraud']:.4f}"
@@ -346,10 +353,10 @@ def main(cfg: DictConfig) -> None:
         logger.info("=" * 60)
 
         out = {
-            "config"      : OmegaConf.to_container(cfg, resolve=True),
-            "val_metrics" : val_metrics,
+            "config": OmegaConf.to_container(cfg, resolve=True),
+            "val_metrics": val_metrics,
             "test_metrics": test_metrics,
-            "best_epoch"  : best_epoch,
+            "best_epoch": best_epoch,
             "training_time_min": round(total_min, 2),
         }
         with open(cfg.training.metrics_output, "w") as f:

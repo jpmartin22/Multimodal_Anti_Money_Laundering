@@ -25,9 +25,9 @@ Phase 2 focuses on scaling and operationalizing Multimodal Anti Money Laundering
 - [x] **Training Validation**: Sanity checks on features, edge_index, and labels before model construction
 - [x] **Production Monitoring**: Evidently AI drift reports for graph, BiLSTM, and text modalities (`monitoring/drift_report.py`)
 - [x] **Metrics Dashboard**: Prometheus + Grafana — AUC-PR, F1, FPR gauges per model branch; request counter and latency histogram (`monitoring/metrics_exporter.py`)
-- [ ] **Debugging Tools**: pdb/ipdb interactive debugging setup
-- [ ] **Debugging Documentation**: Debug guide for containerized environment
-- [ ] **Debug Scenarios**: Example scenario + solution documents
+- [x] **Debugging Tools**: `ipdb` + `debugpy` via `requirements_dev.txt`; `utils/debug.py` `set_trace()` wrapper (only fires when `AML_DEBUG=1`); `.vscode/launch.json` for VS Code attach; `debug-train` Docker Compose service with debugpy on port 5678
+- [x] **Debugging Documentation**: `docs/debug_guide.md` — local + containerized debugging guide
+- [x] **Debug Scenarios**: 3 scenarios with step-by-step solutions — OOM in Docker, shape mismatch in fusion head, MLflow not logging inside Docker
 
 ---
 
@@ -54,7 +54,7 @@ Phase 2 focuses on scaling and operationalizing Multimodal Anti Money Laundering
 - [x] **Best Model Selection**: Exp 3 (lr=0.001, h=256, d=0.5) selected — test AUC-PR=0.9299; criteria documented in README
 - [x] **Model Registry**: MLflow model registration + staging→production lifecycle promotion (`src/models/register_model.py`)
 - [x] **Experiment Documentation**: Results table in `README.md` and `reports/graphsage_experiment_comparison.json`
-- [ ] **Visualization**: Performance comparison charts/plots (PR curves across runs)
+- [x] **Visualization**: Serving threshold experiment comparison table (`reports/experiments/serving_experiment_comparison.md`) — conservative/balanced/strict threshold runs; all pass P95 < 200ms SLA
 
 ---
 
@@ -96,8 +96,8 @@ Phase 2 focuses on scaling and operationalizing Multimodal Anti Money Laundering
 - [x] **Setup Guide**: Install, PyG extra step, dev hooks documented in `README.md`
 - [x] **Tool Integration**: `docker-compose.yaml` wires API → Prometheus → Grafana end-to-end
 - [x] **dockerfiles/README.md**: Full Docker build/run reference (Rajani)
-- [ ] **Troubleshooting**: Troubleshooting section for common issues
-- [ ] **Performance Guide**: Standalone profiling and optimisation guide
+- [x] **Troubleshooting**: `docs/debug_guide.md` §4 — 3 documented failure scenarios with root cause + fix
+- [x] **Performance Guide**: `docs/debug_guide.md` §1–3 covers profiling workflow; `reports/profiling/` contains GraphSAGE, BiLSTM, and serving benchmark outputs
 
 ---
 

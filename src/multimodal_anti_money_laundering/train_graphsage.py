@@ -45,6 +45,21 @@ import logging.handlers
 import os
 import time
 
+# REMOTE DEBUG: to attach VS Code to this process (local or inside Docker), set
+# DEBUGPY_ENABLE=1 before running, then use the "Attach to Docker container" launch config.
+#
+#   DEBUGPY_ENABLE=1 python train_graphsage.py --epochs 5 --max_nodes 8000
+#
+# Or inside Docker:
+#   docker run -e DEBUGPY_ENABLE=1 -p 5678:5678 aml-train python train_graphsage.py
+#
+if os.environ.get("DEBUGPY_ENABLE") == "1":
+    import debugpy  # noqa: T100
+
+    debugpy.listen(("0.0.0.0", 5678))
+    print("debugpy listening on port 5678 — waiting for VS Code to attach …")
+    debugpy.wait_for_client()
+
 import mlflow
 import numpy as np
 import torch
@@ -172,9 +187,7 @@ class GraphSAGEClassifier(nn.Module):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def run_sanity_checks(
-    features: np.ndarray, labels: np.ndarray, edge_index: np.ndarray
-):
+def run_sanity_checks(features: np.ndarray, labels: np.ndarray, edge_index: np.ndarray):
     logger.info("Running sanity checks on graph data...")
 
     assert features.ndim == 2, f"Expected 2D features (N, F), got {features.ndim}D"
@@ -203,11 +216,11 @@ def run_sanity_checks(
     logger.info(
         f"Sanity checks passed — {len(features):,} nodes | "
         f"{edge_index.shape[1]:,} edges | "
-        f"fraud rate: {fraud_rate*100:.2f}% ({labels.sum():,} illicit)"
+        f"fraud rate: {fraud_rate * 100:.2f}% ({labels.sum():,} illicit)"
     )
     if fraud_rate < 0.05:
         logger.warning(
-            f"Low fraud rate ({fraud_rate*100:.2f}%) — pos_weight will handle imbalance"
+            f"Low fraud rate ({fraud_rate * 100:.2f}%) — pos_weight will handle imbalance"
         )
 
 
@@ -234,7 +247,7 @@ def load_graph(
     edge_index = np.load(edge_index_path)
     labels = np.load(labels_path)
 
-    logger.debug(f"Raw load time: {time.time()-t0:.2f}s")
+    logger.debug(f"Raw load time: {time.time() - t0:.2f}s")
     logger.info(
         f"Loaded — nodes: {features.shape[0]:,} | "
         f"features: {features.shape[1]} | edges: {edge_index.shape[1]:,}"
@@ -246,21 +259,26 @@ def load_graph(
         idx_legit = np.where(labels == 0)[0]
         n_fraud = min(len(idx_fraud), max(1, int(max_nodes * labels.mean())))
         n_legit = max_nodes - n_fraud
-        keep = np.concatenate([
-            np.random.choice(idx_fraud, n_fraud, replace=False),
-            np.random.choice(idx_legit, n_legit, replace=False),
-        ])
+        keep = np.concatenate(
+            [
+                np.random.choice(idx_fraud, n_fraud, replace=False),
+                np.random.choice(idx_legit, n_legit, replace=False),
+            ]
+        )
         keep_set = set(keep.tolist())
 
         # Remap node indices for edge_index
         old_to_new = {old: new for new, old in enumerate(keep)}
-        mask_edges = np.array([
-            (s in keep_set and d in keep_set)
-            for s, d in zip(edge_index[0], edge_index[1])
-        ])
+        mask_edges = np.array(
+            [
+                (s in keep_set and d in keep_set)
+                for s, d in zip(edge_index[0], edge_index[1])
+            ]
+        )
         ei_sub = edge_index[:, mask_edges]
-        ei_sub = np.array([[old_to_new[v] for v in ei_sub[0]],
-                           [old_to_new[v] for v in ei_sub[1]]])
+        ei_sub = np.array(
+            [[old_to_new[v] for v in ei_sub[0]], [old_to_new[v] for v in ei_sub[1]]]
+        )
 
         features = features[keep]
         labels = labels[keep]
@@ -348,9 +366,7 @@ def evaluate(
         "f1_fraud": round(report.get("1", {}).get("f1-score", 0), 4),
         "recall_fraud": round(report.get("1", {}).get("recall", 0), 4),
         "precision_fraud": round(report.get("1", {}).get("precision", 0), 4),
-        "false_positive_rate": round(
-            1 - report.get("0", {}).get("recall", 1.0), 4
-        ),
+        "false_positive_rate": round(1 - report.get("0", {}).get("recall", 1.0), 4),
         "accuracy": round(report.get("accuracy", 0), 4),
         "optimal_threshold": round(best_threshold, 4),
     }
@@ -417,18 +433,20 @@ def train(args):
     with mlflow.start_run(
         run_name=f"graphsage_lr{args.lr}_h{args.hidden_dim}_ep{args.epochs}"
     ):
-        mlflow.log_params({
-            "lr": args.lr,
-            "hidden_dim": args.hidden_dim,
-            "embedding_dim": 64,
-            "dropout": args.dropout,
-            "epochs": args.epochs,
-            "n_nodes": len(features),
-            "n_edges": edge_index.shape[1],
-            "n_features": features.shape[1],
-            "pos_weight": round(float(pos_weight.item()), 2),
-            "seed": SEED,
-        })
+        mlflow.log_params(
+            {
+                "lr": args.lr,
+                "hidden_dim": args.hidden_dim,
+                "embedding_dim": 64,
+                "dropout": args.dropout,
+                "epochs": args.epochs,
+                "n_nodes": len(features),
+                "n_edges": edge_index.shape[1],
+                "n_features": features.shape[1],
+                "pos_weight": round(float(pos_weight.item()), 2),
+                "seed": SEED,
+            }
+        )
 
         best_val_auc = 0.0
         best_epoch = 0
@@ -447,6 +465,9 @@ def train(args):
             # NaN guard
             if torch.isnan(loss):
                 logger.error(f"NaN loss at epoch {epoch} — stopping")
+                # DEBUG: uncomment to drop into an interactive debugger when NaN loss occurs.
+                # Inspect logits, labels, and pos_weight to find the root cause.
+                #   import ipdb; ipdb.set_trace()
                 raise ValueError("NaN loss detected")
 
             loss.backward()
@@ -467,12 +488,15 @@ def train(args):
                     f"{epoch_time:.1f}s"
                 )
 
-                mlflow.log_metrics({
-                    "train_loss": round(loss.item(), 4),
-                    "val_auc_pr": val_metrics["auc_pr"],
-                    "val_f1_fraud": val_metrics["f1_fraud"],
-                    "val_recall_fraud": val_metrics["recall_fraud"],
-                }, step=epoch)
+                mlflow.log_metrics(
+                    {
+                        "train_loss": round(loss.item(), 4),
+                        "val_auc_pr": val_metrics["auc_pr"],
+                        "val_f1_fraud": val_metrics["f1_fraud"],
+                        "val_recall_fraud": val_metrics["recall_fraud"],
+                    },
+                    step=epoch,
+                )
 
                 if val_metrics["auc_pr"] > best_val_auc:
                     best_val_auc = val_metrics["auc_pr"]
@@ -497,13 +521,17 @@ def train(args):
         total_time = time.time() - train_start
 
         logger.info("=" * 60)
-        logger.info(f"Training complete in {total_time/60:.1f} min")
-        logger.info(f"Val  AUC-PR: {val_metrics['auc_pr']:.4f} | "
-                    f"F1: {val_metrics['f1_fraud']:.4f} | "
-                    f"Recall: {val_metrics['recall_fraud']:.4f}")
-        logger.info(f"Test AUC-PR: {test_metrics['auc_pr']:.4f} | "
-                    f"F1: {test_metrics['f1_fraud']:.4f} | "
-                    f"Recall: {test_metrics['recall_fraud']:.4f}")
+        logger.info(f"Training complete in {total_time / 60:.1f} min")
+        logger.info(
+            f"Val  AUC-PR: {val_metrics['auc_pr']:.4f} | "
+            f"F1: {val_metrics['f1_fraud']:.4f} | "
+            f"Recall: {val_metrics['recall_fraud']:.4f}"
+        )
+        logger.info(
+            f"Test AUC-PR: {test_metrics['auc_pr']:.4f} | "
+            f"F1: {test_metrics['f1_fraud']:.4f} | "
+            f"Recall: {test_metrics['recall_fraud']:.4f}"
+        )
         logger.info("=" * 60)
 
         mlflow.log_metrics({f"val_{k}": v for k, v in val_metrics.items()})
