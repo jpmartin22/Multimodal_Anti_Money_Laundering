@@ -155,3 +155,4 @@ mlruns/
 mlflow.db
 mlruns/
 logs/
+checkpoints/

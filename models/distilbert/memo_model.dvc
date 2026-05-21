@@ -1,0 +1,6 @@
+outs:
+- md5: f69a1b7c627106a6b753c9023ad4d18d.dir
+  size: 268550405
+  nfiles: 5
+  hash: md5
+  path: memo_model
