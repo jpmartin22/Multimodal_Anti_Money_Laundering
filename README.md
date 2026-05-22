@@ -110,6 +110,232 @@ DistilBERT evaluation throughput: 2,009.5 samples/sec, 31.6 steps/sec after 3 ep
 
 ---
 
+## Phase 2 Operations Guide
+
+> Full Phase 2 checklist: [PHASE2.md](PHASE2.md) — all 7 sections ticked.
+
+This guide explains every tool added in Phase 2, how to set it up, and how to use it effectively. By following the steps below you can clone this repo, build the containers, reproduce all experiments, and observe the system in production.
+
+---
+
+### 1. Containerization
+
+| Image | Purpose | Dockerfile |
+|---|---|---|
+| `aml-graphsage` | GraphSAGE training (Member A) | `dockerfiles/Dockerfile.graphsage` |
+| `aml-scorer` | SageMaker inference endpoint (Member D) | `dockerfiles/Dockerfile.sagemaker` |
+| `aml-hf` | HuggingFace Spaces demo (Member D) | `dockerfiles/Dockerfile.hf` |
+| `multimodal_anti_money_laundering` | General training + API | `dockerfiles/Dockerfile` |
+
+Full build/run reference: [dockerfiles/README.md](dockerfiles/README.md)
+
+Build and run the GraphSAGE training container:
+
+```bash
+docker build -f dockerfiles/Dockerfile.graphsage -t aml-graphsage:latest .
+
+docker run --rm \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/models:/app/models \
+  -v $(pwd)/logs:/app/logs \
+  -v $(pwd)/mlruns:/app/mlruns \
+  aml-graphsage:latest model=graphsage_large
+```
+
+Start the full monitoring stack (API + Prometheus + Grafana):
+
+```bash
+docker compose up api prometheus grafana
+# API:        http://localhost:8000/docs
+# Prometheus: http://localhost:9090
+# Grafana:    http://localhost:3000  (admin / aml_admin)
+```
+
+---
+
+### 2. Monitoring & Debugging
+
+**Prometheus + Grafana** (`monitoring/metrics_exporter.py`)
+
+Exposes live model metrics as Prometheus gauges per branch (graphsage, bilstm, baseline):
+- `aml_model_auc_pr` — AUC-PR per branch
+- `aml_model_f1` — F1 score (fraud class)
+- `aml_model_fpr` — False positive rate
+- `aml_api_latency_seconds` — Prediction latency histogram
+- `aml_api_predictions_total` — Request counter
+
+Metrics endpoint: `GET http://localhost:8000/metrics`
+
+**Evidently AI drift monitoring** (`monitoring/drift_report.py`)
+
+Generates per-modality drift reports comparing training vs production distributions:
+
+```bash
+python src/multimodal_anti_money_laundering/monitoring/run_drift.py
+# Outputs to reports/drift/:
+#   graph_psi_drift.html       ← Population Stability Index on graph features
+#   timeseries_ks_drift.html   ← KS test on BiLSTM sequences
+#   text_wasserstein_drift.html ← Wasserstein distance on memo text stats
+```
+
+**Interactive debugging** (`utils/debug.py`)
+
+```bash
+# Set breakpoint in any script — only fires when AML_DEBUG=1
+AML_DEBUG=1 python src/multimodal_anti_money_laundering/train_graphsage.py
+
+# Remote debugpy attach (VS Code) — uses docker-compose debug-train service
+docker compose --profile debug up debug-train
+# Then attach via VS Code launch.json (port 5678)
+```
+
+Debug scenarios and solutions: [docs/debug_guide.md](docs/debug_guide.md)
+
+---
+
+### 3. Profiling & Optimization
+
+Run cProfile + memory_profiler benchmark for each model branch:
+
+```bash
+# GraphSAGE — 1.92x speedup documented
+python src/multimodal_anti_money_laundering/profile_graphsage.py
+
+# BiLSTM
+python src/multimodal_anti_money_laundering/profile_bilstm.py
+
+# Serving API — threshold experiment comparison
+python src/multimodal_anti_money_laundering/profile_serving.py
+```
+
+Outputs written to `reports/profiling/`:
+
+| File | Contents |
+|---|---|
+| `graphsage_cprofile.txt` | Top-50 hotspots — SAGEConv dominates |
+| `graphsage_memory.txt` | Line-by-line memory (peak: ~420 MB) |
+| `graphsage_benchmark.json` | Before/after: 0.69s → 0.36s per epoch (**1.92x speedup**) |
+| `bilstm_cprofile.txt` | BiLSTM profiling hotspots |
+| `serving_cprofile.txt` | FastAPI /predict profiling |
+| `serving_benchmark.json` | P95 latency: 8.09 ms (well under 200 ms SLA) |
+
+---
+
+### 4. Experiment Tracking (MLflow)
+
+MLflow tracks every training run — parameters, metrics, and model artifacts.
+
+```bash
+# Start MLflow UI
+mlflow ui --port 5000
+# Open http://localhost:5000
+# Experiments: aml_graphsage_graph · aml_bilstm_behavioral · aml-serving-threshold-comparison
+```
+
+**GraphSAGE experiment comparison** (3 runs):
+
+| Run | lr | hidden | dropout | Val AUC-PR | Test AUC-PR | Time |
+|---|---|---|---|---|---|---|
+| Exp 1 | 0.001 | 128 | 0.3 | 0.9318 | 0.9261 | 1.5 min |
+| Exp 2 | 0.005 | 128 | 0.3 | 0.9342 | 0.9264 | 1.7 min |
+| **Exp 3 ★** | **0.001** | **256** | **0.5** | **0.9331** | **0.9299** | **2.3 min** |
+
+**Serving threshold comparison** (3 runs — `reports/experiments/serving_experiment_comparison.md`):
+
+| Run | Threshold | P95 ms | Throughput | SLA |
+|---|---|---|---|---|
+| conservative | 0.3 | 3.57 | 523 rps | ✅ |
+| balanced | 0.5 | 8.09 | 263 rps | ✅ |
+| strict | 0.7 | 3.36 | 530 rps | ✅ |
+
+Model registration + lifecycle promotion (staging → production):
+
+```bash
+python -m multimodal_anti_money_laundering.models.register_model
+```
+
+---
+
+### 5. Logging
+
+All training scripts use Python's `logging` module with two handlers:
+- **Console** — `INFO` level, human-readable format
+- **Rotating file** — `DEBUG` level, 5 MB max, 3 backups
+
+Log output format:
+```
+10:23:41 | INFO     | Graph loaded — nodes: 46,564 | edges: 73,248 | fraud: 9.76%
+10:23:41 | INFO     | pos_weight: 9.25x
+10:23:41 | INFO     | Split — Train: 32,594 | Val: 6,984 | Test: 6,986
+10:23:43 | INFO     | Epoch  20/200 | loss: 0.1823 | val AUC-PR: 0.8741
+10:24:01 | INFO     | Epoch 200/200 | loss: 0.0744 | val AUC-PR: 0.9318
+```
+
+Log files:
+- `logs/graphsage_training.log` — GraphSAGE
+- `logs/bilstm_training.log` — BiLSTM
+- `logs/distilbert_training.log` — DistilBERT
+
+Pre-training assertion checks (all scripts): NaN detection, shape validation, label range, class imbalance warning.
+
+Inference logging: the API logs stub warnings when the fusion model is not loaded, and records latency via Prometheus histogram.
+
+---
+
+### 6. Configuration Management (Hydra)
+
+All hyperparameters are managed via YAML configs in `conf/`. Any value can be overridden from the CLI without editing files.
+
+Full `conf/` directory:
+
+```
+conf/
+  config.yaml                    # GraphSAGE entry point
+  config_bilstm.yaml             # BiLSTM entry point
+  config_distilbert.yaml         # DistilBERT entry point
+  model/
+    graphsage_base.yaml          # hidden=128, dropout=0.3
+    graphsage_large.yaml         # hidden=256, dropout=0.5  ← best AUC-PR 0.9299
+    bilstm.yaml                  # hidden=64, layers=2, dropout=0.3
+    distilbert.yaml              # embedding_dim=64, max_len=128
+  data/
+    elliptic.yaml                # graph feature paths + split ratios
+    bilstm.yaml                  # sequence data paths
+    memo.yaml                    # memo text data path
+  training/
+    default.yaml                 # lr=0.001, epochs=200, grad_clip=1.0
+    fast.yaml                    # epochs=5, max_nodes=8000  ← CI smoke test
+    bilstm_default.yaml          # lr=0.001, epochs=10, batch=256
+    bilstm_fast.yaml             # epochs=1, max_samples=5000
+    distilbert_default.yaml      # lr=2e-5, epochs=3, batch=32
+    distilbert_fast.yaml         # epochs=1, max_samples=1000
+```
+
+Usage examples:
+
+```bash
+# GraphSAGE — best model config
+python src/multimodal_anti_money_laundering/train_graphsage_hydra.py model=graphsage_large
+
+# GraphSAGE — CI smoke test
+python src/multimodal_anti_money_laundering/train_graphsage_hydra.py training=fast
+
+# BiLSTM — default training
+python src/multimodal_anti_money_laundering/train_bilstm.py
+
+# DistilBERT — fast CPU smoke test
+python src/multimodal_anti_money_laundering/train_distilbert.py training=distilbert_fast
+
+# Any script — print resolved config without running
+python src/multimodal_anti_money_laundering/train_graphsage_hydra.py --cfg job
+
+# Any script — override any value
+python src/multimodal_anti_money_laundering/train_graphsage_hydra.py \
+    training.lr=0.005 model.hidden_channels=64 training.epochs=50
+```
+
+---
+
 ## Phase 2 Guide — GraphSAGE (Member A)
 
 ### GraphSAGE Training
@@ -149,176 +375,7 @@ python src/multimodal_anti_money_laundering/train_graphsage_hydra.py \
 python src/multimodal_anti_money_laundering/train_graphsage_hydra.py --cfg job
 ```
 
-Config file hierarchy:
-
-```
-conf/
-  config.yaml               # entry point — composes defaults
-  model/
-    graphsage_base.yaml     # hidden=128, dropout=0.3
-    graphsage_large.yaml    # hidden=256, dropout=0.5  ← best (AUC-PR 0.9299)
-  data/
-    elliptic.yaml           # data paths + split ratios + seed
-  training/
-    default.yaml            # lr=0.001, epochs=200, grad_clip=1.0
-    fast.yaml               # epochs=5, max_nodes=8000  ← smoke test
-```
-
-### DistilBERT Configuration
-
-Fine-tune the memo text model with Hydra:
-
-```bash
-# Default DistilBERT config
-python src/multimodal_anti_money_laundering/train_distilbert.py
-
-# Fast CPU smoke test
-python src/multimodal_anti_money_laundering/train_distilbert.py training=distilbert_fast
-
-# Override individual values
-python src/multimodal_anti_money_laundering/train_distilbert.py \
-    training.epochs=1 data.max_samples=5000
-
-# Print resolved config without training
-python src/multimodal_anti_money_laundering/train_distilbert.py --cfg job
-```
-
-Latest DistilBERT metrics (`distilbert_metrics.json`):
-
-| Metric | Value |
-|---|---:|
-| Eval loss | 0.2451 |
-| AUC-PR | 0.8418 |
-| Precision @ Recall = 0.8 | 1.0000 |
-| F1 illicit | 0.9011 |
-| Precision illicit | 1.0000 |
-| Recall illicit | 0.8200 |
-| Accuracy | 0.9964 |
-| Eval samples/sec | 2,009.5 |
-
-### BiLSTM Configuration
-
-Train the behavioral sequence model with Hydra:
-
-```bash
-# Default BiLSTM config
-python src/multimodal_anti_money_laundering/train_bilstm.py
-
-# Fast smoke test
-python src/multimodal_anti_money_laundering/train_bilstm.py training=bilstm_fast
-
-# Override individual values
-python src/multimodal_anti_money_laundering/train_bilstm.py \
-    training.epochs=5 model.hidden_size=128 training.lr=0.0001
-
-# Print resolved config without training
-python src/multimodal_anti_money_laundering/train_bilstm.py --cfg job
-```
-
-Latest BiLSTM metrics (`bilstm_metrics.json`):
-
-| Metric | Value |
-|---|---:|
-| AUC-PR | 0.9324 |
-| Precision @ Recall = 0.8 | 0.9613 |
-| F1 fraud | 0.8672 |
-| Precision fraud | 0.8327 |
-| Recall fraud | 0.9047 |
-| False positive rate | 0.0197 |
-| Accuracy | 0.9729 |
-| Optimal threshold | 0.3000 |
-
-### Profiling
-
-Run cProfile + memory_profiler benchmark (before vs. after optimization):
-
-```bash
-python src/multimodal_anti_money_laundering/profile_graphsage.py
-```
-
-Outputs to `reports/profiling/`:
-- `graphsage_cprofile.txt` — top-50 hotspots by cumulative time
-- `graphsage_memory.txt` — line-by-line memory usage
-- `graphsage_benchmark.json` — before/after timing (1.92x speedup)
-
-Key optimization: reducing hidden channels 256→128 and adding gradient clipping cut per-epoch time from 0.69s to 0.36s on 8k nodes.
-
-### Experiment Tracking (MLflow)
-
-Three experiments were run and compared. Start the MLflow UI:
-
-```bash
-mlflow ui --port 5000
-# Open http://localhost:5000 → experiment: aml_graphsage_graph
-```
-
-| Run | lr | hidden | dropout | Val AUC-PR | Test AUC-PR | Time |
-|---|---|---|---|---|---|---|
-| Exp 1 | 0.001 | 128 | 0.3 | 0.9318 | 0.9261 | 1.5 min |
-| Exp 2 | 0.005 | 128 | 0.3 | 0.9342 | 0.9264 | 1.7 min |
-| **Exp 3** ★ | **0.001** | **256** | **0.5** | **0.9331** | **0.9299** | **2.3 min** |
-
-★ Best run selected. Saved to `models/graphsage/graphsage_best.pt` and DVC-tracked.
-
-Full comparison JSON: `reports/graphsage_experiment_comparison.json`
-
-### Logging
-
-Training logs rotate at 5 MB (3 backups) and write to `logs/graphsage_training.log`:
-
-```
-10:23:41 | INFO     | Graph loaded — nodes: 46,564 | edges: 73,248 | fraud: 9.76%
-10:23:41 | INFO     | pos_weight: 9.25x
-10:23:41 | INFO     | Split — Train: 32,594 | Val: 6,984 | Test: 6,986
-10:23:43 | INFO     | Epoch  20/200 | loss: 0.1823 | val AUC-PR: 0.8741 | val F1: 0.0000
-10:23:51 | INFO     | Epoch 100/200 | loss: 0.0912 | val AUC-PR: 0.9215 | val F1: 0.0000
-10:24:01 | INFO     | Epoch 200/200 | loss: 0.0744 | val AUC-PR: 0.9318 | val F1: 0.0000
-```
-
-Assertion checks run before training: NaN detection, shape validation, label range, class imbalance warning.
-
-### Containerization (Docker)
-
-Build the GraphSAGE image:
-
-```bash
-docker build -f dockerfiles/Dockerfile.graphsage -t aml-graphsage:latest .
-```
-
-Run training (mounts local data/models/logs):
-
-```bash
-docker run --rm \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/models:/app/models \
-  -v $(pwd)/logs:/app/logs \
-  -v $(pwd)/mlruns:/app/mlruns \
-  aml-graphsage:latest
-```
-
-With Hydra overrides (all CLI flags pass through to Hydra):
-
-```bash
-docker run --rm \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/models:/app/models \
-  aml-graphsage:latest model=graphsage_large training=fast
-```
-
-Via Docker Compose (uses `train` profile):
-
-```bash
-docker compose --profile train up graphsage-train
-```
-
-Start the full monitoring stack (API + Prometheus + Grafana):
-
-```bash
-docker compose up api prometheus grafana
-# Grafana: http://localhost:3000  (admin / aml_admin)
-# Prometheus: http://localhost:9090
-# API metrics: http://localhost:8001/metrics
-```
+See the full `conf/` tree in the [Phase 2 Operations Guide](#phase-2-operations-guide) above.
 
 ---
 
