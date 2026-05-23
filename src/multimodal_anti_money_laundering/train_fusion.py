@@ -219,11 +219,20 @@ def train(args: argparse.Namespace) -> None:
 
     # ── Extract all embeddings ────────────────────────────────────────────────
     gs_emb = extract_graphsage_embeddings(graph_X, edge_index, graphsage_enc, device)
-    bl_emb = extract_bilstm_embeddings(bilstm_X, bilstm_enc, device)
-    bert_cls = extract_distilbert_embeddings(labels, DISTILBERT_DIR, device)
+    del graph_X, edge_index, graphsage_enc  # free ~30 MB
 
-    fused = np.concatenate([gs_emb, bl_emb, bert_cls], axis=1)  # (N, 64+64+768=896)
-    logger.info("Fused embedding matrix: %s", fused.shape)
+    bl_emb = extract_bilstm_embeddings(bilstm_X, bilstm_enc, device)
+    del bilstm_X, bilstm_enc  # free ~1.5 GB before loading DistilBERT
+
+    if args.no_distilbert:
+        logger.info("--no-distilbert: skipping text branch, using zero embeddings")
+        bert_cls = np.zeros((len(labels), BERT_HIDDEN), dtype=np.float32)
+    else:
+        bert_cls = extract_distilbert_embeddings(labels, DISTILBERT_DIR, device)
+
+    logger.info(
+        "Embeddings — graph:%s  bilstm:%s  text:%s", gs_emb.shape, bl_emb.shape, bert_cls.shape
+    )
 
     # ── Train / val / test split ──────────────────────────────────────────────
     idx = np.arange(len(labels))
@@ -411,6 +420,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--epochs", type=int, default=50)
     p.add_argument("--lr", type=float, default=0.001)
     p.add_argument("--smoke", action="store_true", help="5 epochs fast test")
+    p.add_argument(
+        "--no-distilbert",
+        dest="no_distilbert",
+        action="store_true",
+        help="Skip DistilBERT extraction (use zero text embeddings) to save RAM",
+    )
     return p.parse_args()
 
 
