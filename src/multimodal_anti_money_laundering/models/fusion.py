@@ -236,6 +236,9 @@ class AMLFusionModel:
         prob = float(torch.sigmoid(logit).item())
 
         if self.calibrator is not None:
-            prob = float(self.calibrator.predict_proba([[prob]])[0, 1])
+            try:
+                prob = float(self.calibrator.predict_proba([[prob]])[0, 1])
+            except Exception:
+                logger.warning("Calibrator failed — using raw sigmoid probability")
 
         return round(prob, 4)

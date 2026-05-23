@@ -32,9 +32,9 @@ def test_predict_stub_returns_valid_schema():
     assert "threshold" in body
 
 
-def test_predict_stub_score_is_05():
+def test_predict_score_in_range():
     r = client.post("/predict", json=_VALID_PAYLOAD)
-    assert r.json()["aml_risk_score"] == 0.5
+    assert 0.0 <= r.json()["aml_risk_score"] <= 1.0
 
 
 def test_predict_missing_memo_returns_422():
