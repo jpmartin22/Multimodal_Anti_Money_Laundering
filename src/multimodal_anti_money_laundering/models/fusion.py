@@ -219,6 +219,7 @@ class AMLFusionModel:
             padding="max_length",
             max_length=64,
         )
+        tokens.pop("token_type_ids", None)  # DistilBERT has no token_type_ids
         tokens = {k: v.to(self.device) for k, v in tokens.items()}
         out = self.distilbert_base(**tokens)
         return out.last_hidden_state[:, 0, :]  # (1, 768) CLS token

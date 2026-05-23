@@ -40,7 +40,6 @@ import mlflow
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     average_precision_score,
@@ -165,6 +164,7 @@ def extract_distilbert_embeddings(
                 padding="max_length",
                 max_length=64,
             )
+            tokens.pop("token_type_ids", None)  # DistilBERT has no token_type_ids
             tokens = {k: v.to(device) for k, v in tokens.items()}
             out = bert_base(**tokens)
             cls = out.last_hidden_state[:, 0, :].cpu().numpy()  # (batch, 768)
@@ -367,14 +367,9 @@ def train(args: argparse.Namespace) -> None:
 
         # ── Platt calibration ─────────────────────────────────────────────────
         logger.info("Fitting Platt calibration on val logits...")
-        val_logits_np = model(gs_val, bl_val, bc_val).detach().cpu().numpy().ravel()
-
-        base_lr = LogisticRegression(C=1.0, max_iter=1000, random_state=SEED)
-        calibrator = CalibratedClassifierCV(base_lr, method="sigmoid", cv="prefit")
-        base_lr.fit(val_logits_np.reshape(-1, 1), labels[idx_val])
-        calibrator.calibrated_classifiers_ = [type("CC", (), {"calibrator": base_lr})()]
-
-        # Simpler: just fit a logistic regression as Platt calibrator directly
+        model.eval()
+        with torch.no_grad():
+            val_logits_np = model(gs_val, bl_val, bc_val).cpu().numpy().ravel()
         platt = LogisticRegression(C=1.0, max_iter=1000, random_state=SEED)
         platt.fit(val_logits_np.reshape(-1, 1), labels[idx_val])
         logger.info("Platt calibration fitted on %d val samples", len(idx_val))
