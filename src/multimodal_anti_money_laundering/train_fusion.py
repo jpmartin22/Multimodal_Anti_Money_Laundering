@@ -147,7 +147,9 @@ def extract_distilbert_embeddings(
         return emb
 
     if not distilbert_dir.exists():
-        logger.warning("DistilBERT dir not found — using zero embeddings for text branch")
+        logger.warning(
+            "DistilBERT dir not found — using zero embeddings for text branch"
+        )
         return np.zeros((len(labels), BERT_HIDDEN), dtype=np.float32)
 
     import traceback
@@ -156,13 +158,17 @@ def extract_distilbert_embeddings(
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
         tokenizer = AutoTokenizer.from_pretrained(str(distilbert_dir))
-        bert_model = AutoModelForSequenceClassification.from_pretrained(str(distilbert_dir))
+        bert_model = AutoModelForSequenceClassification.from_pretrained(
+            str(distilbert_dir)
+        )
         bert_base = bert_model.distilbert.eval().to(device)
         del bert_model  # free classifier head memory
 
         memos = [generate_memo(int(lbl), i) for i, lbl in enumerate(labels)]
         parts = []
-        logger.info("Extracting DistilBERT [CLS] embeddings for %d memos...", len(memos))
+        logger.info(
+            "Extracting DistilBERT [CLS] embeddings for %d memos...", len(memos)
+        )
         for start in range(0, len(memos), batch_size):
             batch_memos = memos[start : start + batch_size]
             tokens = tokenizer(
@@ -179,12 +185,18 @@ def extract_distilbert_embeddings(
             cls = out.last_hidden_state[:, 0, :].cpu().numpy()
             parts.append(cls)
             if (start // batch_size) % 100 == 0:
-                logger.info("  batch %d/%d", start // batch_size, len(memos) // batch_size)
+                logger.info(
+                    "  batch %d/%d", start // batch_size, len(memos) // batch_size
+                )
 
         emb = np.concatenate(parts, axis=0)
         DISTILBERT_CACHE.parent.mkdir(parents=True, exist_ok=True)
         np.save(DISTILBERT_CACHE, emb)
-        logger.info("DistilBERT [CLS] embeddings saved to cache: %s  shape=%s", DISTILBERT_CACHE, emb.shape)
+        logger.info(
+            "DistilBERT [CLS] embeddings saved to cache: %s  shape=%s",
+            DISTILBERT_CACHE,
+            emb.shape,
+        )
         return emb
     except Exception:
         print("DistilBERT extraction error:\n", traceback.format_exc())
@@ -255,7 +267,10 @@ def train(args: argparse.Namespace) -> None:
         bert_cls = extract_distilbert_embeddings(labels, DISTILBERT_DIR, device)
 
     logger.info(
-        "Embeddings — graph:%s  bilstm:%s  text:%s", gs_emb.shape, bl_emb.shape, bert_cls.shape
+        "Embeddings — graph:%s  bilstm:%s  text:%s",
+        gs_emb.shape,
+        bl_emb.shape,
+        bert_cls.shape,
     )
 
     # ── Train / val / test split ──────────────────────────────────────────────
