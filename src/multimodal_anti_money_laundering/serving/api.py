@@ -41,6 +41,16 @@ load_model_metrics()
 _MODEL = None
 _THRESHOLD = 0.5
 
+# Auto-load fusion model if checkpoint exists
+_FUSION_PT = Path("models/fusion/fusion_mlp.pt")
+if _FUSION_PT.exists():
+    try:
+        from multimodal_anti_money_laundering.models.fusion import AMLFusionModel
+        _MODEL = AMLFusionModel.from_default_paths()
+        logger.info("Fusion model loaded — live scoring enabled")
+    except Exception:
+        logger.exception("Fusion model load failed — falling back to stub score")
+
 
 @app.get("/health")
 def health() -> dict[str, str]:
@@ -76,7 +86,7 @@ def predict(request: PredictRequest) -> PredictResponse:
         )
         score = 0.5
     else:
-        score = _MODEL.score(request)  # wired in Week 3
+        score = _MODEL.score(request)
 
     elapsed = time.perf_counter() - start
     flagged = score >= _THRESHOLD
@@ -92,9 +102,9 @@ def predict(request: PredictRequest) -> PredictResponse:
     )
 
 
-def load_model(model_path: Path) -> None:
-    """Replace the stub with the trained fusion model at startup."""
+def load_model(model_path: Path | None = None) -> None:
+    """(Re)load the fusion model. Called at startup or by tests."""
     global _MODEL
-    logger.info("Loading fusion model from %s", model_path)
-    # TODO Week 3: from multimodal_anti_money_laundering.models.fusion import FusionModel
-    # TODO Week 3: _MODEL = FusionModel.load(model_path)
+    from multimodal_anti_money_laundering.models.fusion import AMLFusionModel
+    _MODEL = AMLFusionModel.from_default_paths()
+    logger.info("Fusion model loaded from default paths")
