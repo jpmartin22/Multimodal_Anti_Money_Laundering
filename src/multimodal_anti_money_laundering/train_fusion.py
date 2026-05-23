@@ -134,27 +134,35 @@ def extract_bilstm_embeddings(
     return emb
 
 
-@torch.no_grad()
+DISTILBERT_CACHE = Path("data/processed/distilbert_cls.npy")
+
+
 def extract_distilbert_embeddings(
     labels: np.ndarray, distilbert_dir: Path, device: torch.device, batch_size: int = 32
 ) -> np.ndarray:
+    # Use cached embeddings if available (avoids loading 267MB model alongside other data)
+    if DISTILBERT_CACHE.exists():
+        emb = np.load(DISTILBERT_CACHE).astype(np.float32)
+        logger.info("DistilBERT embeddings loaded from cache: %s", emb.shape)
+        return emb
+
     if not distilbert_dir.exists():
-        logger.warning(
-            "DistilBERT dir not found — using zero embeddings for text branch"
-        )
+        logger.warning("DistilBERT dir not found — using zero embeddings for text branch")
         return np.zeros((len(labels), BERT_HIDDEN), dtype=np.float32)
+
+    import traceback
 
     try:
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
         tokenizer = AutoTokenizer.from_pretrained(str(distilbert_dir))
-        bert_model = AutoModelForSequenceClassification.from_pretrained(
-            str(distilbert_dir)
-        )
+        bert_model = AutoModelForSequenceClassification.from_pretrained(str(distilbert_dir))
         bert_base = bert_model.distilbert.eval().to(device)
+        del bert_model  # free classifier head memory
 
         memos = [generate_memo(int(lbl), i) for i, lbl in enumerate(labels)]
         parts = []
+        logger.info("Extracting DistilBERT [CLS] embeddings for %d memos...", len(memos))
         for start in range(0, len(memos), batch_size):
             batch_memos = memos[start : start + batch_size]
             tokens = tokenizer(
@@ -164,17 +172,33 @@ def extract_distilbert_embeddings(
                 padding="max_length",
                 max_length=64,
             )
-            tokens.pop("token_type_ids", None)  # DistilBERT has no token_type_ids
+            tokens.pop("token_type_ids", None)
             tokens = {k: v.to(device) for k, v in tokens.items()}
-            out = bert_base(**tokens)
-            cls = out.last_hidden_state[:, 0, :].cpu().numpy()  # (batch, 768)
+            with torch.no_grad():
+                out = bert_base(**tokens)
+            cls = out.last_hidden_state[:, 0, :].cpu().numpy()
             parts.append(cls)
+            if (start // batch_size) % 100 == 0:
+                logger.info("  batch %d/%d", start // batch_size, len(memos) // batch_size)
+
         emb = np.concatenate(parts, axis=0)
-        logger.info("DistilBERT [CLS] embeddings: %s", emb.shape)
+        DISTILBERT_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        np.save(DISTILBERT_CACHE, emb)
+        logger.info("DistilBERT [CLS] embeddings saved to cache: %s  shape=%s", DISTILBERT_CACHE, emb.shape)
         return emb
     except Exception:
+        print("DistilBERT extraction error:\n", traceback.format_exc())
         logger.exception("DistilBERT extraction failed — using zero embeddings")
         return np.zeros((len(labels), BERT_HIDDEN), dtype=np.float32)
+
+
+def run_extract_bert_only(labels: np.ndarray) -> None:
+    """Extract DistilBERT embeddings only and save to cache. Run this separately
+    with a clean Python process before running the full fusion training."""
+    device = torch.device("cpu")
+    logger.info("Extracting DistilBERT embeddings (standalone mode)...")
+    emb = extract_distilbert_embeddings(labels, DISTILBERT_DIR, device)
+    logger.info("Done. Saved to %s  shape=%s", DISTILBERT_CACHE, emb.shape)
 
 
 # ── Training ──────────────────────────────────────────────────────────────────
@@ -426,12 +450,22 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip DistilBERT extraction (use zero text embeddings) to save RAM",
     )
+    p.add_argument(
+        "--extract-bert-only",
+        dest="extract_bert_only",
+        action="store_true",
+        help="Only extract DistilBERT embeddings and save cache, then exit",
+    )
     return p.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    if args.smoke:
-        args.epochs = 5
-        args.lr = 0.001
-    train(args)
+    if args.extract_bert_only:
+        labels = np.load(GRAPH_LABELS).astype(np.float32)
+        run_extract_bert_only(labels)
+    else:
+        if args.smoke:
+            args.epochs = 5
+            args.lr = 0.001
+        train(args)
