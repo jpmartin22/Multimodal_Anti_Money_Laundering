@@ -94,7 +94,7 @@ class AMLFusionModel:
     """
 
     N_FEATURES = 165  # Elliptic features per node (time_step col excluded)
-    SEQ_LEN = 49      # BiLSTM sequence length
+    SEQ_LEN = 49  # BiLSTM sequence length
 
     def __init__(
         self,
@@ -151,7 +151,8 @@ class AMLFusionModel:
 
         if model_dir is None or not model_dir.exists():
             logger.warning(
-                "DistilBERT dir not found (%s) — text branch uses zero embeddings", model_dir
+                "DistilBERT dir not found (%s) — text branch uses zero embeddings",
+                model_dir,
             )
             return
 
@@ -159,11 +160,15 @@ class AMLFusionModel:
             from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
             self.tokenizer = AutoTokenizer.from_pretrained(str(model_dir))
-            bert_model = AutoModelForSequenceClassification.from_pretrained(str(model_dir))
+            bert_model = AutoModelForSequenceClassification.from_pretrained(
+                str(model_dir)
+            )
             self.distilbert_base = bert_model.distilbert.eval().to(self.device)
             logger.info("DistilBERT base loaded from %s", model_dir)
         except Exception:
-            logger.exception("DistilBERT load failed — text branch uses zero embeddings")
+            logger.exception(
+                "DistilBERT load failed — text branch uses zero embeddings"
+            )
 
     def _load_fusion(self, path: Path) -> None:
         self.fusion = LateFusionMLP()

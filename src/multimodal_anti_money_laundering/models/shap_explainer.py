@@ -24,6 +24,7 @@ import logging
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")  # headless — no display needed
 import matplotlib.pyplot as plt
 import numpy as np
@@ -53,6 +54,7 @@ np.random.seed(SEED)
 
 # ── Load embeddings ───────────────────────────────────────────────────────────
 
+
 def load_fused_embeddings(device: torch.device) -> tuple[np.ndarray, np.ndarray]:
     """Load preprocessed data and extract fused embeddings from all encoders."""
     graph_X = np.load("data/processed/graph_features.npy").astype(np.float32)
@@ -62,7 +64,9 @@ def load_fused_embeddings(device: torch.device) -> tuple[np.ndarray, np.ndarray]
 
     # GraphSAGE embeddings
     gs_enc = GraphSAGEEncoder()
-    gs_enc.load_state_dict(torch.load(GRAPHSAGE_ENCODER, map_location=device, weights_only=True))
+    gs_enc.load_state_dict(
+        torch.load(GRAPHSAGE_ENCODER, map_location=device, weights_only=True)
+    )
     gs_enc.eval().to(device)
 
     with torch.no_grad():
@@ -72,7 +76,9 @@ def load_fused_embeddings(device: torch.device) -> tuple[np.ndarray, np.ndarray]
 
     # BiLSTM embeddings
     bl_enc = BiLSTMEncoder()
-    bl_enc.load_state_dict(torch.load(BILSTM_ENCODER, map_location=device, weights_only=True))
+    bl_enc.load_state_dict(
+        torch.load(BILSTM_ENCODER, map_location=device, weights_only=True)
+    )
     bl_enc.eval().to(device)
 
     with torch.no_grad():
@@ -83,12 +89,21 @@ def load_fused_embeddings(device: torch.device) -> tuple[np.ndarray, np.ndarray]
     if DISTILBERT_DIR.exists():
         try:
             from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
             tokenizer = AutoTokenizer.from_pretrained(str(DISTILBERT_DIR))
-            bert_model = AutoModelForSequenceClassification.from_pretrained(str(DISTILBERT_DIR))
+            bert_model = AutoModelForSequenceClassification.from_pretrained(
+                str(DISTILBERT_DIR)
+            )
             bert_base = bert_model.distilbert.eval().to(device)
 
-            _templates_illicit = ["urgent wire transfer consulting offshore", "immediate payment advisory fee shell"]
-            _templates_licit = ["invoice payment monthly subscription", "vendor payroll standard payment"]
+            _templates_illicit = [
+                "urgent wire transfer consulting offshore",
+                "immediate payment advisory fee shell",
+            ]
+            _templates_licit = [
+                "invoice payment monthly subscription",
+                "vendor payroll standard payment",
+            ]
             memos = [
                 (_templates_illicit if int(lbl) == 1 else _templates_licit)[i % 2]
                 for i, lbl in enumerate(labels)
@@ -109,18 +124,25 @@ def load_fused_embeddings(device: torch.device) -> tuple[np.ndarray, np.ndarray]
                     bert_parts.append(out.last_hidden_state[:, 0, :].cpu().numpy())
             bert_cls = np.concatenate(bert_parts, axis=0)
         except Exception:
-            logger.warning("DistilBERT unavailable — using zero embeddings for text branch")
+            logger.warning(
+                "DistilBERT unavailable — using zero embeddings for text branch"
+            )
             bert_cls = np.zeros((len(labels), BERT_HIDDEN), dtype=np.float32)
     else:
-        logger.warning("DistilBERT dir not found — using zero embeddings for text branch")
+        logger.warning(
+            "DistilBERT dir not found — using zero embeddings for text branch"
+        )
         bert_cls = np.zeros((len(labels), BERT_HIDDEN), dtype=np.float32)
 
     fused = np.concatenate([gs_emb, bl_emb, bert_cls], axis=1)
-    logger.info("Fused embeddings: %s  |  illicit=%.1f%%", fused.shape, labels.mean() * 100)
+    logger.info(
+        "Fused embeddings: %s  |  illicit=%.1f%%", fused.shape, labels.mean() * 100
+    )
     return fused, labels
 
 
 # ── SHAP wrapper ──────────────────────────────────────────────────────────────
+
 
 def make_predict_fn(fusion: LateFusionMLP, device: torch.device):
     """Return a numpy → numpy predict function for KernelExplainer."""
@@ -141,6 +163,7 @@ def make_predict_fn(fusion: LateFusionMLP, device: torch.device):
 
 # ── Feature names ─────────────────────────────────────────────────────────────
 
+
 def make_feature_names(fused_dim: int) -> list[str]:
     names = []
     names += [f"GraphSAGE_{i}" for i in range(64)]
@@ -151,6 +174,7 @@ def make_feature_names(fused_dim: int) -> list[str]:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def run(args: argparse.Namespace) -> None:
     device = torch.device("cpu")  # KernelExplainer is CPU-bound anyway
 
@@ -159,7 +183,9 @@ def run(args: argparse.Namespace) -> None:
 
     # Load fusion model
     fusion = LateFusionMLP()
-    fusion.load_state_dict(torch.load(FUSION_PT, map_location=device, weights_only=True))
+    fusion.load_state_dict(
+        torch.load(FUSION_PT, map_location=device, weights_only=True)
+    )
     fusion.eval()
     logger.info("Fusion MLP loaded from %s", FUSION_PT)
 
@@ -169,22 +195,29 @@ def run(args: argparse.Namespace) -> None:
     illicit_idx = np.where(labels == 1)[0]
     licit_idx = np.where(labels == 0)[0]
     n_bg = min(50, len(illicit_idx), len(licit_idx))
-    bg_idx = np.concatenate([
-        np.random.choice(illicit_idx, n_bg, replace=False),
-        np.random.choice(licit_idx, n_bg, replace=False),
-    ])
+    bg_idx = np.concatenate(
+        [
+            np.random.choice(illicit_idx, n_bg, replace=False),
+            np.random.choice(licit_idx, n_bg, replace=False),
+        ]
+    )
     background = fused[bg_idx]
     logger.info("SHAP background: %d samples", len(background))
 
     # Explain N_SAMPLES test instances (mix of illicit + licit)
     n = args.n_samples
-    test_idx = np.concatenate([
-        illicit_idx[:n // 2],
-        licit_idx[:n // 2],
-    ])
+    test_idx = np.concatenate(
+        [
+            illicit_idx[: n // 2],
+            licit_idx[: n // 2],
+        ]
+    )
     test_X = fused[test_idx]
 
-    logger.info("Running KernelExplainer on %d samples (this takes a few minutes)...", len(test_X))
+    logger.info(
+        "Running KernelExplainer on %d samples (this takes a few minutes)...",
+        len(test_X),
+    )
     explainer = shap.KernelExplainer(predict_fn, background)
     shap_values = explainer.shap_values(test_X, nsamples=100)
 
@@ -197,11 +230,13 @@ def run(args: argparse.Namespace) -> None:
     most_suspicious = int(np.argmax(probs))
     logger.info(
         "Force plot: sample index %d  score=%.4f  true_label=%d",
-        most_suspicious, probs[most_suspicious], int(labels[test_idx[most_suspicious]])
+        most_suspicious,
+        probs[most_suspicious],
+        int(labels[test_idx[most_suspicious]]),
     )
 
     shap.initjs()
-    force_plot = shap.force_plot(
+    shap.force_plot(
         explainer.expected_value,
         shap_values[most_suspicious],
         test_X[most_suspicious],
@@ -230,8 +265,13 @@ def run(args: argparse.Namespace) -> None:
     ax.set_xlabel("Mean |SHAP value|")
     ax.set_title("AML Modality Importance (SHAP)")
     for bar, val in zip(bars, values):
-        ax.text(val + 0.0002, bar.get_y() + bar.get_height() / 2,
-                f"{val:.4f}", va="center", fontsize=10)
+        ax.text(
+            val + 0.0002,
+            bar.get_y() + bar.get_height() / 2,
+            f"{val:.4f}",
+            va="center",
+            fontsize=10,
+        )
     plt.tight_layout()
     plt.savefig(REPORTS_DIR / "shap_summary_plot.png", dpi=150)
     plt.close()

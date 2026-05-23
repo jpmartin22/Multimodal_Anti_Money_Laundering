@@ -32,7 +32,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import time
 from pathlib import Path
 
@@ -43,7 +42,11 @@ import torch
 import torch.nn as nn
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import average_precision_score, classification_report, precision_recall_curve
+from sklearn.metrics import (
+    average_precision_score,
+    classification_report,
+    precision_recall_curve,
+)
 from sklearn.model_selection import train_test_split
 
 from multimodal_anti_money_laundering.models.fusion import BERT_HIDDEN, LateFusionMLP
@@ -97,9 +100,13 @@ def generate_memo(label: int, node_idx: int) -> str:
 
 # ── Embedding extraction ──────────────────────────────────────────────────────
 
+
 @torch.no_grad()
 def extract_graphsage_embeddings(
-    features: np.ndarray, edge_index: np.ndarray, encoder: GraphSAGEEncoder, device: torch.device
+    features: np.ndarray,
+    edge_index: np.ndarray,
+    encoder: GraphSAGEEncoder,
+    device: torch.device,
 ) -> np.ndarray:
     logger.info("Extracting GraphSAGE embeddings for %d nodes...", len(features))
     x = torch.tensor(features, dtype=torch.float32).to(device)
@@ -111,12 +118,17 @@ def extract_graphsage_embeddings(
 
 @torch.no_grad()
 def extract_bilstm_embeddings(
-    sequences: np.ndarray, encoder: BiLSTMEncoder, device: torch.device, batch_size: int = 256
+    sequences: np.ndarray,
+    encoder: BiLSTMEncoder,
+    device: torch.device,
+    batch_size: int = 256,
 ) -> np.ndarray:
     logger.info("Extracting BiLSTM embeddings for %d sequences...", len(sequences))
     parts = []
     for start in range(0, len(sequences), batch_size):
-        batch = torch.tensor(sequences[start : start + batch_size], dtype=torch.float32).to(device)
+        batch = torch.tensor(
+            sequences[start : start + batch_size], dtype=torch.float32
+        ).to(device)
         parts.append(encoder(batch).cpu().numpy())
     emb = np.concatenate(parts, axis=0)
     logger.info("BiLSTM embeddings: %s", emb.shape)
@@ -128,14 +140,18 @@ def extract_distilbert_embeddings(
     labels: np.ndarray, distilbert_dir: Path, device: torch.device, batch_size: int = 32
 ) -> np.ndarray:
     if not distilbert_dir.exists():
-        logger.warning("DistilBERT dir not found — using zero embeddings for text branch")
+        logger.warning(
+            "DistilBERT dir not found — using zero embeddings for text branch"
+        )
         return np.zeros((len(labels), BERT_HIDDEN), dtype=np.float32)
 
     try:
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
         tokenizer = AutoTokenizer.from_pretrained(str(distilbert_dir))
-        bert_model = AutoModelForSequenceClassification.from_pretrained(str(distilbert_dir))
+        bert_model = AutoModelForSequenceClassification.from_pretrained(
+            str(distilbert_dir)
+        )
         bert_base = bert_model.distilbert.eval().to(device)
 
         memos = [generate_memo(int(lbl), i) for i, lbl in enumerate(labels)]
@@ -163,6 +179,7 @@ def extract_distilbert_embeddings(
 
 # ── Training ──────────────────────────────────────────────────────────────────
 
+
 def train(args: argparse.Namespace) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info("Device: %s", device)
@@ -180,8 +197,12 @@ def train(args: argparse.Namespace) -> None:
     edge_index = np.load(GRAPH_EDGE_INDEX)
     bilstm_X = np.load(BILSTM_SEQUENCES).astype(np.float32)
 
-    logger.info("Graph features: %s  |  Labels: %s  |  Illicit: %.1f%%",
-                graph_X.shape, labels.shape, labels.mean() * 100)
+    logger.info(
+        "Graph features: %s  |  Labels: %s  |  Illicit: %.1f%%",
+        graph_X.shape,
+        labels.shape,
+        labels.mean() * 100,
+    )
 
     # ── Load encoders (frozen) ────────────────────────────────────────────────
     graphsage_enc = GraphSAGEEncoder()
@@ -206,11 +227,15 @@ def train(args: argparse.Namespace) -> None:
 
     # ── Train / val / test split ──────────────────────────────────────────────
     idx = np.arange(len(labels))
-    idx_tv, idx_test = train_test_split(idx, test_size=0.15, stratify=labels, random_state=SEED)
+    idx_tv, idx_test = train_test_split(
+        idx, test_size=0.15, stratify=labels, random_state=SEED
+    )
     idx_train, idx_val = train_test_split(
         idx_tv, test_size=0.15 / 0.85, stratify=labels[idx_tv], random_state=SEED
     )
-    logger.info("Split — train:%d  val:%d  test:%d", len(idx_train), len(idx_val), len(idx_test))
+    logger.info(
+        "Split — train:%d  val:%d  test:%d", len(idx_train), len(idx_val), len(idx_test)
+    )
 
     def to_tensors(idx_split):
         gs = torch.tensor(gs_emb[idx_split], dtype=torch.float32).to(device)
@@ -228,21 +253,27 @@ def train(args: argparse.Namespace) -> None:
     pos_weight = torch.tensor([(y_tr == 0).sum() / (y_tr == 1).sum()]).to(device)
     criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, patience=5, factor=0.5
+    )
 
-    logger.info("pos_weight=%.2f  lr=%s  epochs=%d", pos_weight.item(), args.lr, args.epochs)
+    logger.info(
+        "pos_weight=%.2f  lr=%s  epochs=%d", pos_weight.item(), args.lr, args.epochs
+    )
 
     # ── MLflow run ────────────────────────────────────────────────────────────
     mlflow.set_experiment("AML-Fusion")
     with mlflow.start_run(run_name=f"fusion_ep{args.epochs}_lr{args.lr}"):
-        mlflow.log_params({
-            "epochs": args.epochs,
-            "lr": args.lr,
-            "dropout": 0.3,
-            "architecture": "192→128→64→1",
-            "encoders": "graphsage+bilstm+distilbert",
-            "calibration": "platt",
-        })
+        mlflow.log_params(
+            {
+                "epochs": args.epochs,
+                "lr": args.lr,
+                "dropout": 0.3,
+                "architecture": "192→128→64→1",
+                "encoders": "graphsage+bilstm+distilbert",
+                "calibration": "platt",
+            }
+        )
 
         best_val_auc = 0.0
         best_state = None
@@ -269,15 +300,24 @@ def train(args: argparse.Namespace) -> None:
 
                 logger.info(
                     "Epoch %3d/%d  loss=%.4f  val_AUC-PR=%.4f",
-                    epoch, args.epochs, loss.item(), val_auc,
+                    epoch,
+                    args.epochs,
+                    loss.item(),
+                    val_auc,
                 )
-                mlflow.log_metrics({"train_loss": loss.item(), "val_auc_pr": val_auc}, step=epoch)
+                mlflow.log_metrics(
+                    {"train_loss": loss.item(), "val_auc_pr": val_auc}, step=epoch
+                )
 
                 if val_auc > best_val_auc:
                     best_val_auc = val_auc
                     best_state = {k: v.clone() for k, v in model.state_dict().items()}
 
-        logger.info("Training done in %.1fs  |  best val AUC-PR=%.4f", time.time() - t0, best_val_auc)
+        logger.info(
+            "Training done in %.1fs  |  best val AUC-PR=%.4f",
+            time.time() - t0,
+            best_val_auc,
+        )
 
         # ── Test evaluation ───────────────────────────────────────────────────
         model.load_state_dict(best_state)
@@ -287,15 +327,21 @@ def train(args: argparse.Namespace) -> None:
         test_probs = 1 / (1 + np.exp(-test_logits))
         test_auc = average_precision_score(labels[idx_test], test_probs)
 
-        precision, recall, thresholds = precision_recall_curve(labels[idx_test], test_probs)
+        precision, recall, thresholds = precision_recall_curve(
+            labels[idx_test], test_probs
+        )
         idx_r80 = np.searchsorted(recall[::-1], 0.8)
-        prec_at_r80 = float(precision[::-1][idx_r80]) if idx_r80 < len(precision) else 0.0
+        prec_at_r80 = (
+            float(precision[::-1][idx_r80]) if idx_r80 < len(precision) else 0.0
+        )
 
         # Optimal F1 threshold
         f1_scores = 2 * precision * recall / (precision + recall + 1e-8)
         best_thr = float(thresholds[np.argmax(f1_scores[:-1])])
         test_preds = (test_probs >= best_thr).astype(int)
-        report = classification_report(labels[idx_test], test_preds, output_dict=True, zero_division=0)
+        report = classification_report(
+            labels[idx_test], test_preds, output_dict=True, zero_division=0
+        )
         fpr = report.get("0", {}).get("recall", 1.0)
         fpr = 1 - fpr  # FPR = 1 - TNR
 
@@ -308,14 +354,16 @@ def train(args: argparse.Namespace) -> None:
             fpr,
             best_thr,
         )
-        mlflow.log_metrics({
-            "test_auc_pr": test_auc,
-            "test_f1": report.get("1", {}).get("f1-score", 0),
-            "test_precision": report.get("1", {}).get("precision", 0),
-            "test_recall": report.get("1", {}).get("recall", 0),
-            "test_fpr": fpr,
-            "best_threshold": best_thr,
-        })
+        mlflow.log_metrics(
+            {
+                "test_auc_pr": test_auc,
+                "test_f1": report.get("1", {}).get("f1-score", 0),
+                "test_precision": report.get("1", {}).get("precision", 0),
+                "test_recall": report.get("1", {}).get("recall", 0),
+                "test_fpr": fpr,
+                "best_threshold": best_thr,
+            }
+        )
 
         # ── Platt calibration ─────────────────────────────────────────────────
         logger.info("Fitting Platt calibration on val logits...")
@@ -324,9 +372,7 @@ def train(args: argparse.Namespace) -> None:
         base_lr = LogisticRegression(C=1.0, max_iter=1000, random_state=SEED)
         calibrator = CalibratedClassifierCV(base_lr, method="sigmoid", cv="prefit")
         base_lr.fit(val_logits_np.reshape(-1, 1), labels[idx_val])
-        calibrator.calibrated_classifiers_ = [
-            type("CC", (), {"calibrator": base_lr})()
-        ]
+        calibrator.calibrated_classifiers_ = [type("CC", (), {"calibrator": base_lr})()]
 
         # Simpler: just fit a logistic regression as Platt calibrator directly
         platt = LogisticRegression(C=1.0, max_iter=1000, random_state=SEED)
@@ -363,6 +409,7 @@ def train(args: argparse.Namespace) -> None:
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
+
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Train AML late-fusion MLP")

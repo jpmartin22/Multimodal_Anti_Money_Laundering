@@ -46,6 +46,7 @@ _FUSION_PT = Path("models/fusion/fusion_mlp.pt")
 if _FUSION_PT.exists():
     try:
         from multimodal_anti_money_laundering.models.fusion import AMLFusionModel
+
         _MODEL = AMLFusionModel.from_default_paths()
         logger.info("Fusion model loaded — live scoring enabled")
     except Exception:
@@ -106,5 +107,6 @@ def load_model(model_path: Path | None = None) -> None:
     """(Re)load the fusion model. Called at startup or by tests."""
     global _MODEL
     from multimodal_anti_money_laundering.models.fusion import AMLFusionModel
+
     _MODEL = AMLFusionModel.from_default_paths()
     logger.info("Fusion model loaded from default paths")
