@@ -238,7 +238,59 @@ def run_memory_profile(data: Data):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. BEFORE / AFTER BENCHMARK
+# 3. PYTORCH PROFILER (torch.profiler)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def run_torch_profiler(data: Data):
+    """Run torch.profiler around one training step and save Chrome trace JSON."""
+    import torch.profiler as tp
+
+    logger.info("Running torch.profiler...")
+
+    device = torch.device("cpu")
+    data = data.to(device)
+    model = GraphSAGEClassifier(
+        in_channels=data.num_node_features,
+        hidden_channels=128,
+        embedding_dim=64,
+        dropout=0.3,
+    ).to(device)
+    n_pos = int(data.y.sum().item())
+    n_neg = data.num_nodes - n_pos
+    pos_weight = torch.tensor([n_neg / max(n_pos, 1)], dtype=torch.float32)
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
+
+    trace_path = os.path.join(OUTPUT_DIR, "graphsage_torch_profiler.json")
+
+    with tp.profile(
+        activities=[tp.ProfilerActivity.CPU],
+        record_shapes=True,
+        with_stack=False,
+    ) as prof:
+        with tp.record_function("forward_backward"):
+            model.train()
+            optimizer.zero_grad()
+            logits, _ = model(data.x, data.edge_index)
+            loss = criterion(logits, data.y)
+            loss.backward()
+            optimizer.step()
+
+    prof.export_chrome_trace(trace_path)
+    logger.info("torch.profiler Chrome trace saved -> %s", trace_path)
+
+    # Print top 10 ops by CPU time
+    print("\n" + "=" * 65)
+    print("  TOP 10 OPS — torch.profiler (self CPU time)")
+    print("=" * 65)
+    print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=10))
+
+    return trace_path
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. BEFORE / AFTER BENCHMARK
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -322,7 +374,10 @@ def main():
     # 2. Memory profiling
     run_memory_profile(data)
 
-    # 3. Before / after benchmark
+    # 3. PyTorch Profiler
+    run_torch_profiler(data)
+
+    # 4. Before / after benchmark
     run_benchmark(data)
 
     logger.info("All profiling complete.")

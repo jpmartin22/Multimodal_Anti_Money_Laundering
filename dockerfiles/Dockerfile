@@ -2,7 +2,7 @@
 # Multi-stage build for Multimodal Anti Money Laundering
 
 # ── Stage 1: Builder ──────────────────────────────────────────────────────────
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim-bookworm AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY requirements.serve.txt .
 RUN pip install --no-cache-dir --user -r requirements.serve.txt
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 LABEL org.opencontainers.image.title="Multimodal AML Detection" \
       org.opencontainers.image.description="GraphSAGE + DistilBERT + BiLSTM AML risk scorer" \
