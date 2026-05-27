@@ -1,0 +1,135 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker image tag to deploy (default: latest)"
+        default: "latest"
+        required: false
+
+env:
+  GCP_PROJECT: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+  AR_REPO: ${{ vars.AR_REPO || 'aml-images' }}
+  SERVICE_NAME: aml-multimodal-scorer
+  IMAGE: aml-api
+
+jobs:
+  deploy:
+    name: Build, push & deploy to Cloud Run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # required for Workload Identity Federation
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Authenticate to GCP via Workload Identity Federation ────────────────
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # ── Configure Docker to push to Artifact Registry ───────────────────────
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── Resolve image tag ────────────────────────────────────────────────────
+      - name: Resolve image tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.image_tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="sha-$(echo ${{ github.sha }} | cut -c1-7)"
+          fi
+          IMAGE_URI="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT }}/${{ env.AR_REPO }}/${{ env.IMAGE }}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "image_uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
+          echo "full=${IMAGE_URI}:${TAG}" >> $GITHUB_OUTPUT
+
+      # ── Build and push to Artifact Registry ─────────────────────────────────
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: dockerfiles/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.tag.outputs.full }}
+            ${{ steps.tag.outputs.image_uri }}:latest
+          cache-from: type=gha,scope=cloudrun
+          cache-to: type=gha,mode=max,scope=cloudrun
+          provenance: false
+
+      # ── Deploy to Cloud Run ──────────────────────────────────────────────────
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.GCP_REGION }}
+          image: ${{ steps.tag.outputs.full }}
+          flags: |
+            --allow-unauthenticated
+            --port=8000
+            --memory=2Gi
+            --cpu=2
+            --min-instances=0
+            --max-instances=10
+            --concurrency=80
+            --timeout=60s
+          env_vars: |
+            AML_THRESHOLD=0.5
+            LOG_LEVEL=INFO
+            MLFLOW_TRACKING_URI=file:///app/mlruns
+
+      # ── Smoke-test the deployed service ─────────────────────────────────────
+      - name: Smoke-test deployed service
+        run: |
+          SERVICE_URL="${{ steps.deploy.outputs.url }}"
+          echo "Service URL: $SERVICE_URL"
+
+          echo "── /health ──"
+          curl -sf "${SERVICE_URL}/health" | python3 -m json.tool
+
+          echo "── /predict (stub) ──"
+          curl -sf -X POST "${SERVICE_URL}/predict" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "transaction_id": "ci-smoke-001",
+              "graph": {"node_features": '"$(python3 -c 'print([0.1]*166)')"'},
+              "memo_text": "CI smoke test payment",
+              "time_series": {"window": [[0.01, 0.5, 0.5, 0.0, 0.01]]}
+            }' | python3 -m json.tool
+
+      # ── Write job summary ────────────────────────────────────────────────────
+      - name: Write job summary
+        run: |
+          echo "### Cloud Run Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | \`${{ env.SERVICE_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Region | \`${{ env.GCP_REGION }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | \`${{ steps.tag.outputs.full }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| URL | ${{ steps.deploy.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Triggered by | \`${{ github.event_name }}\` @ \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
