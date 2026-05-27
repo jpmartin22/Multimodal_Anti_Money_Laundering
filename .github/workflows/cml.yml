@@ -1,0 +1,49 @@
+name: CML — Model Report
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  cml-report:
+    name: Generate & Post Model Report
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            matplotlib \
+            numpy \
+            pandas \
+            scikit-learn \
+            "mlflow>=2.16.0"
+          pip install -e . --no-deps
+
+      - name: Generate comparison plots
+        run: python scripts/cml_report.py
+
+      - name: Post CML report as PR comment
+        uses: iterative/cml@v2
+        with:
+          cmd: cat reports/cml_report.md
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
