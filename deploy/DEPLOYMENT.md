@@ -204,3 +204,181 @@ docker run --rm -p 7860:7860 aml-hf
 curl http://localhost:7860/health
 curl http://localhost:7860/docs
 ```
+
+---
+
+## Automated Cloud Run Deployment (GitHub Actions)
+
+The `deploy-cloudrun.yml` workflow handles builds and deploys automatically.
+
+### One-time setup
+
+```bash
+# 1. Bootstrap all GCP resources (project, SA, Artifact Registry, GCS, WI Federation)
+export GCP_PROJECT=your-project-id
+bash scripts/setup_gcp.sh
+
+# 2. Add the following to GitHub → Settings → Secrets and variables → Actions
+#    Secrets:
+#      GCP_WORKLOAD_IDENTITY_PROVIDER   (printed by setup_gcp.sh)
+#      GCP_SERVICE_ACCOUNT              (printed by setup_gcp.sh)
+#    Variables:
+#      GCP_PROJECT_ID                   your GCP project ID
+#      GCP_REGION                       us-central1  (or your preferred region)
+#      AR_REPO                          aml-images
+```
+
+### Trigger deployment
+
+```bash
+# Automatic: push to master
+git push origin master
+
+# Manual (redeploy with a specific image tag):
+#   GitHub → Actions → "Deploy to Cloud Run" → Run workflow → enter image_tag
+```
+
+### Verify after deploy
+
+```bash
+# Get service URL
+SERVICE_URL=$(gcloud run services describe aml-multimodal-scorer \
+  --region us-central1 --format='value(status.url)')
+
+echo "Service URL: $SERVICE_URL"
+curl "$SERVICE_URL/health"
+```
+
+---
+
+## Environment Variables & Secrets
+
+### Runtime environment variables (Cloud Run)
+
+| Variable | Default | Description |
+|---|---|---|
+| `AML_THRESHOLD` | `0.5` | Decision threshold for `flagged` field |
+| `LOG_LEVEL` | `INFO` | Python logging level (`DEBUG`, `INFO`, `WARNING`) |
+| `MLFLOW_TRACKING_URI` | `file:///app/mlruns` | MLflow backend (set to remote URI in production) |
+| `PORT` | `8000` | Port the uvicorn server listens on |
+
+Set Cloud Run env vars:
+```bash
+gcloud run services update aml-multimodal-scorer \
+  --region us-central1 \
+  --set-env-vars AML_THRESHOLD=0.4,LOG_LEVEL=WARNING
+```
+
+### GCS model registry variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `GCS_MODEL_BUCKET` | `aml-model-registry` | GCS bucket for model artifacts |
+
+### CI/CD secrets (GitHub Actions)
+
+| Secret / Variable | Required | Description |
+|---|---|---|
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Secret | Full WI provider resource name |
+| `GCP_SERVICE_ACCOUNT` | Secret | SA email for impersonation |
+| `GCP_PROJECT_ID` | Variable | GCP project ID |
+| `GCP_REGION` | Variable | Deployment region |
+| `AR_REPO` | Variable | Artifact Registry repo name |
+
+---
+
+## Rollback Procedures
+
+### Cloud Run — roll back to previous revision
+
+```bash
+# List revisions
+gcloud run revisions list --service aml-multimodal-scorer --region us-central1
+
+# Route 100% traffic to a previous revision
+gcloud run services update-traffic aml-multimodal-scorer \
+  --region us-central1 \
+  --to-revisions <REVISION-NAME>=100
+
+# Example: roll back to specific revision
+gcloud run services update-traffic aml-multimodal-scorer \
+  --region us-central1 \
+  --to-revisions aml-multimodal-scorer-00005-abc=100
+```
+
+### Model registry — revert to previous model version
+
+```bash
+# Check available versions
+python scripts/gcs_model_registry.py list --model fusion
+
+# Promote an older version back to latest
+python scripts/gcs_model_registry.py promote --model fusion --version 0.9.0
+
+# Download and re-deploy the older version
+python scripts/gcs_model_registry.py download \
+  --model fusion --version 0.9.0 --dest models/fusion/
+```
+
+### Git — revert a bad commit on master
+
+```bash
+# Safe revert (creates a new commit, preserves history)
+git revert <bad-commit-sha>
+git push origin master
+# The deploy-cloudrun.yml workflow will automatically redeploy
+```
+
+---
+
+## Troubleshooting
+
+### Cloud Run: container fails to start
+
+```bash
+# View logs
+gcloud run services logs read aml-multimodal-scorer --region us-central1 --limit 50
+
+# Common causes:
+# - Missing model file: ensure models/fusion/fusion_mlp.pt is in the image or mounted
+# - Port mismatch: Dockerfile CMD must use --port 8000 (set via PORT env var)
+# - Memory exceeded: increase --memory to 4Gi for the fusion model
+```
+
+### GitHub Actions: WI authentication fails
+
+```
+Error: google-github-actions/auth failed with: the GitHub Actions workflow must be triggered by the master branch
+```
+
+Fix: Ensure `GCP_WORKLOAD_IDENTITY_PROVIDER` was created with the correct repository binding. Re-run `bash scripts/setup_gcp.sh` to recreate the attribute condition.
+
+### Artifact Registry: push permission denied
+
+```bash
+# Re-configure Docker auth
+gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+# Verify SA has Artifact Registry Writer role
+gcloud projects get-iam-policy $GCP_PROJECT \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:serviceAccount:aml-ci-sa@*"
+```
+
+### High latency on first request
+
+Cloud Run scales to zero by default. The first request after idle triggers a **cold start** (~2–5 s). Options:
+
+```bash
+# Keep at least 1 instance warm (increases cost)
+gcloud run services update aml-multimodal-scorer \
+  --region us-central1 --min-instances 1
+```
+
+### AUC-PR gate fails in CI
+
+```
+CRITICAL CRASH: Model performance (0.XX) dropped below regulatory compliance target (0.80)
+```
+
+The gate reads `reports/metrics.json`. Ensure the file exists and `auc_pr` reflects the latest evaluation run. Check MLflow for the true value, then update `reports/metrics.json` accordingly.

@@ -475,6 +475,131 @@ Hooks run: `ruff` (lint + fix), `ruff-format`, `mypy`, `trailing-whitespace`, `e
 
 ---
 
+## Phase 3: CI/CD & Deployment
+
+> Full checklist: [PHASE3.md](PHASE3.md) · Deployment details: [deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md) · API reference: [docs/api.md](docs/api.md)
+
+### CI/CD Pipeline
+
+Four GitHub Actions workflows run on every push to `master` or pull request:
+
+```mermaid
+flowchart TD
+    push(["git push / PR"])
+
+    subgraph ci["ci.yml — runs on every push & PR"]
+        lint["ruff lint + format\nmypy type check"]
+        tests["pytest\nPython 3.10 & 3.11 matrix"]
+        gate["AUC-PR gate ≥ 0.80"]
+        cov["Codecov upload"]
+        lint --> tests --> gate
+        tests --> cov
+    end
+
+    subgraph docker["docker-build.yml — push & PR"]
+        build["Build aml-api\naml-graphsage · aml-hf"]
+        smoke["/health smoke-test"]
+        ghcr["Push to GHCR\n(master/tags only)"]
+        build --> smoke --> ghcr
+    end
+
+    subgraph cml["cml.yml — push & PR"]
+        report["Generate metrics\nplots + comparison"]
+        comment["Post report as\nPR comment"]
+        report --> comment
+    end
+
+    subgraph cloudrun["deploy-cloudrun.yml — master/tags only"]
+        ar["Push to\nArtifact Registry"]
+        run["Deploy to\nCloud Run"]
+        smokerun["Smoke-test\nlive endpoint"]
+        ar --> run --> smokerun
+    end
+
+    push --> ci
+    push --> docker
+    push --> cml
+    ghcr --> cloudrun
+```
+
+### Deployment Options
+
+| Option | Where | Command | URL |
+|---|---|---|---|
+| **HuggingFace Spaces** (recommended for demo) | HF Docker Space | `python deploy/push_to_spaces.py --username <hf-user>` | `https://huggingface.co/spaces/<hf-user>/aml-multimodal-scorer` |
+| **Gradio UI** (HF Spaces) | HF Gradio Space | deploy `deploy/huggingface/app.py` | Interactive UI at port 7860 |
+| **Cloud Run** (production) | GCP | Triggered automatically on push to `master` | `https://<service>-<hash>-<region>.a.run.app` |
+
+Full step-by-step instructions for each option: [deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md)
+
+### GCP Quick-Start
+
+```bash
+# 1. Set your project and bootstrap all GCP resources (one-time)
+export GCP_PROJECT=your-project-id
+bash scripts/setup_gcp.sh
+
+# 2. Add GitHub repo secrets from the script output:
+#    GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_SERVICE_ACCOUNT, GCP_PROJECT_ID, GCP_REGION
+
+# 3. Push to master — Cloud Run deploys automatically via deploy-cloudrun.yml
+
+# 4. Upload trained model to GCS registry
+python scripts/gcs_model_registry.py upload \
+    --model fusion --version 1.0.0 --local-dir models/fusion/
+
+# 5. Submit a retraining job on Vertex AI
+python scripts/vertex_ai_training.py submit --model fusion --async
+```
+
+### Invoking the Deployed API
+
+```bash
+# Replace with your Cloud Run or HuggingFace Spaces URL
+API="https://<your-service-url>"
+
+# Health check
+curl $API/health
+
+# Score a transaction
+curl -X POST $API/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transaction_id": "tx-001",
+    "graph": {"node_features": [0.1, 0.2, ...]},
+    "memo_text": "consulting services invoice",
+    "time_series": {"window": [[1000.0, 14.0, 2.0, 0.0, 0.01]]}
+  }'
+```
+
+Full endpoint reference with schemas and error codes: [docs/api.md](docs/api.md)
+
+### Monitoring & Troubleshooting
+
+| Signal | Where to look |
+|---|---|
+| Prometheus metrics | `GET /metrics` on any running instance |
+| Structured logs | Cloud Logging → filter `resource.type="cloud_run_revision"` |
+| AUC-PR model report | PR comments via CML (`.github/workflows/cml.yml`) |
+| Data drift | `python -m multimodal_anti_money_laundering.monitoring.drift_report` |
+| Load test results | `locust -f tests/locustfile.py --host=$API --headless` |
+
+Common issues and fixes: [deploy/DEPLOYMENT.md#troubleshooting](deploy/DEPLOYMENT.md)
+
+### Cost Estimation (GCP)
+
+| Resource | Typical cost | Notes |
+|---|---|---|
+| Cloud Run | ~$0 | Free tier: 2M requests/month, scales to zero |
+| Artifact Registry | ~$0.10/GB/month | ~3 images × 2 GB each |
+| GCS model bucket | ~$0.02/GB/month | Versioned model artifacts |
+| Vertex AI training | ~$1–5/run | n1-standard-4, ~30–60 min |
+| Cloud Monitoring | Free | Up to 150 MB metrics/month free |
+
+To avoid charges: run `bash CLEANUP.md` instructions when done. See [CLEANUP.md](CLEANUP.md).
+
+---
+
 ## Technology Stack
 
 | Library | Version | Role |
@@ -526,8 +651,29 @@ multimodal_anti_money_laundering/
 ├── reports/figures/               # Generated plots
 ├── REPORT.md                      # Baseline metrics and ablation results
 ├── PHASE1.md / PHASE2.md / PHASE3.md
-├── .github/workflows/ci.yml       # GitHub Actions pipeline
+├── .github/workflows/
+│   ├── ci.yml                     # Lint, mypy, pytest (Py 3.10+3.11), AUC-PR gate
+│   ├── docker-build.yml           # Build + push all images to GHCR
+│   ├── cml.yml                    # CML model report on every PR
+│   └── deploy-cloudrun.yml        # Push to Artifact Registry + Cloud Run deploy
+├── deploy/
+│   ├── DEPLOYMENT.md              # Step-by-step deployment guide
+│   ├── push_to_spaces.py          # HuggingFace Spaces deploy script
+│   └── huggingface/app.py         # Gradio UI for HF Spaces
+├── scripts/
+│   ├── setup_gcp.sh               # GCP bootstrap (APIs, SA, Artifact Registry, GCS)
+│   ├── gcs_model_registry.py      # Upload / download / promote model artifacts
+│   ├── vertex_ai_training.py      # Submit Vertex AI custom training jobs
+│   └── cml_report.py              # CML metrics plot generator
+├── tests/
+│   ├── test_model.py              # Unit tests — BaseModel / Model
+│   ├── test_serving.py            # FastAPI endpoint tests
+│   ├── test_integration.py        # Integration tests — full lightweight pipeline
+│   └── locustfile.py              # Locust load test (normal + burst users)
 ├── dockerfiles/Dockerfile
+├── CONTRIBUTING.md                # How to contribute (CI/CD and test requirements)
+├── CLEANUP.md                     # GCP resource teardown instructions
+├── CHANGELOG.md                   # Release and deployment history
 └── pyproject.toml
 ```
 
