@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "created": "2026-05-27",
+    "description": "Phase 3 checkpoint — post fusion training. Committed as the stable baseline for CML delta comparison.",
+    "note": "Update this file when a new best model is promoted to production."
+  },
+  "graphsage": {
+    "auc_pr": 0.9299,
+    "prec_at_recall_80": 0.9463,
+    "false_positive_rate": 0.0,
+    "f1_fraud": 0.0,
+    "accuracy": 0.9767
+  },
+  "bilstm": {
+    "auc_pr": 0.938,
+    "prec_at_recall_80": 0.9681,
+    "false_positive_rate": 0.1193,
+    "f1_fraud": 0.6258,
+    "accuracy": 0.8882
+  },
+  "fusion": {
+    "auc_pr": 0.9435,
+    "prec_at_recall_80": 0.9681,
+    "false_positive_rate": 0.0,
+    "f1_fraud": 0.0,
+    "val_auc_pr": 0.9477
+  }
+}

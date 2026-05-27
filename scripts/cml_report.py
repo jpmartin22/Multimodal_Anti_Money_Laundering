@@ -4,7 +4,8 @@ Reads stored metrics JSON files (no model training required) and generates:
   1. Markdown metrics table — all models vs proposal targets
   2. AUC-PR comparison bar chart  (reports/figures/cml_auc_pr.png)
   3. Multi-metric comparison chart (reports/figures/cml_metrics.png)
-  4. Full markdown report          (reports/cml_report.md)
+  4. Current vs. baseline delta table
+  5. Full markdown report          (reports/cml_report.md)
 
 The cml.yml workflow posts cml_report.md as a PR comment via iterative/cml.
 """
@@ -31,8 +32,10 @@ def load_metrics() -> dict:
     gs_raw   = _read(ROOT / "graphsage_metrics.json")
     bl_raw   = _read(ROOT / "models" / "baseline_metrics.json")
     bilstm   = _read(ROOT / "bilstm_metrics.json")
+    fusion   = _read(ROOT / "fusion_metrics.json")
     gs_exp   = _read(ROOT / "reports" / "graphsage_experiment_comparison.json")
     serving  = _read(ROOT / "reports" / "profiling" / "serving_benchmark.json")
+    snapshot = _read(ROOT / "reports" / "baseline_snapshot.json")
 
     gs_test = gs_raw.get("test_metrics", gs_raw)
 
@@ -61,20 +64,29 @@ def load_metrics() -> dict:
             "f1":          bilstm.get("f1_fraud", 0),
             "colour":      "#9467bd",
         },
+        "fusion": {
+            "label":       "Late-Fusion MLP",
+            "auc_pr":      fusion.get("auc_pr", 0),
+            "prec_at_r80": fusion.get("prec_at_recall_80", 0),
+            "fpr":         fusion.get("false_positive_rate", 1.0),
+            "f1":          fusion.get("f1_fraud", 0),
+            "colour":      "#17becf",
+        },
         "_serving":  serving,
         "_gs_exp":   gs_exp,
+        "_snapshot": snapshot,
     }
 
 
 # ── Chart 1: AUC-PR bar chart ────────────────────────────────────────────────
 
 def plot_auc_pr(data: dict) -> Path:
-    models = ["baseline", "graphsage", "bilstm"]
-    labels = [data[m]["label"] for m in models]
-    values = [data[m]["auc_pr"] for m in models]
+    models  = ["baseline", "graphsage", "bilstm", "fusion"]
+    labels  = [data[m]["label"] for m in models]
+    values  = [data[m]["auc_pr"] for m in models]
     colours = [data[m]["colour"] for m in models]
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(9, 5))
     bars = ax.bar(labels, values, color=colours, alpha=0.85, zorder=3)
     ax.axhline(0.80, color="#ff7f0e", linewidth=2, linestyle="--",
                label="Target AUC-PR = 0.80", zorder=4)
@@ -101,17 +113,17 @@ def plot_auc_pr(data: dict) -> Path:
 # ── Chart 2: Multi-metric grouped bar chart ───────────────────────────────────
 
 def plot_multi_metric(data: dict) -> Path:
-    models  = ["baseline", "graphsage", "bilstm"]
+    models  = ["baseline", "graphsage", "bilstm", "fusion"]
     labels  = [data[m]["label"] for m in models]
     metrics = {
-        "AUC-PR":        [data[m]["auc_pr"]      for m in models],
-        "Prec@Recall=0.8":[data[m]["prec_at_r80"] for m in models],
-        "F1 (fraud)":    [data[m]["f1"]           for m in models],
+        "AUC-PR":         [data[m]["auc_pr"]      for m in models],
+        "Prec@Recall=0.8": [data[m]["prec_at_r80"] for m in models],
+        "F1 (fraud)":     [data[m]["f1"]           for m in models],
     }
 
     x = np.arange(len(labels))
-    width = 0.25
-    fig, ax = plt.subplots(figsize=(10, 5))
+    width = 0.22
+    fig, ax = plt.subplots(figsize=(11, 5))
 
     palette = ["#1f77b4", "#2ca02c", "#ff7f0e"]
     for i, (metric, vals) in enumerate(metrics.items()):
@@ -140,6 +152,76 @@ def plot_multi_metric(data: dict) -> Path:
     return out
 
 
+# ── Delta comparison: current run vs committed baseline snapshot ──────────────
+
+def build_delta_section(data: dict) -> list[str]:
+    """Return markdown lines comparing current metrics to baseline_snapshot.json."""
+    snap = data.get("_snapshot", {})
+    if not snap or "_meta" not in snap:
+        return []
+
+    snap_date = snap.get("_meta", {}).get("created", "unknown")
+    snap_desc = snap.get("_meta", {}).get("description", "")
+
+    def _delta(current: float, previous: float, lower_is_better: bool = False) -> str:
+        """Format a Δ cell: green ▲ for improvement, red ▼ for regression, — for no change."""
+        if previous == 0 or current == previous:
+            return "—"
+        raw_diff = current - previous
+        improvement = (-raw_diff) if lower_is_better else raw_diff
+        symbol = "▲" if improvement > 0 else "▼"
+        colour = "green" if improvement > 0 else "red"
+        return f"<span style='color:{colour}'>{symbol} {abs(raw_diff):.4f}</span>"
+
+    model_keys = [
+        ("graphsage", "GraphSAGE"),
+        ("bilstm",    "BiLSTM"),
+        ("fusion",    "Late-Fusion MLP"),
+    ]
+
+    lines = [
+        "### Current vs. Baseline Snapshot",
+        "",
+        f"> Baseline: `{snap_date}` — {snap_desc}",
+        "",
+        "| Model | Metric | Baseline | Current | Δ |",
+        "|-------|--------|----------|---------|---|",
+    ]
+
+    for key, label in model_keys:
+        snap_m = snap.get(key, {})
+        curr_m = data.get(key, {})
+        if not snap_m or not curr_m:
+            continue
+
+        metrics_cfg = [
+            ("auc_pr",         "AUC-PR",          False),
+            ("prec_at_r80",    "Prec@Recall=0.8", False),
+            ("fpr",            "FPR",             True),
+            ("f1",             "F1 (fraud)",      False),
+        ]
+        snap_key_map = {
+            "auc_pr":      "auc_pr",
+            "prec_at_r80": "prec_at_recall_80",
+            "fpr":         "false_positive_rate",
+            "f1":          "f1_fraud",
+        }
+
+        for curr_key, display, lower in metrics_cfg:
+            s_key   = snap_key_map[curr_key]
+            s_val   = snap_m.get(s_key, None)
+            c_val   = curr_m.get(curr_key, None)
+            if s_val is None or c_val is None:
+                continue
+            delta = _delta(c_val, s_val, lower_is_better=lower)
+            lines.append(
+                f"| {label} | {display} | {s_val:.4f} | {c_val:.4f} | {delta} |"
+            )
+
+    lines.append("")
+    return lines
+
+
 # ── Build markdown report ─────────────────────────────────────────────────────
 
 def build_report(data: dict, chart1: Path, chart2: Path) -> str:
@@ -151,6 +233,7 @@ def build_report(data: dict, chart1: Path, chart2: Path) -> str:
     gs = data["graphsage"]
     bl = data["baseline"]
     bi = data["bilstm"]
+    fu = data["fusion"]
 
     def _pass(val, target, lower=False):
         ok = val <= target if lower else val >= target
@@ -163,22 +246,27 @@ def build_report(data: dict, chart1: Path, chart2: Path) -> str:
         "",
         "### Success Metrics vs Targets",
         "",
-        "| Metric | Target | XGBoost Baseline | GraphSAGE | BiLSTM |",
-        "|--------|--------|-----------------|-----------|--------|",
-        f"| AUC-PR (primary) | ≥ 0.80 | {_pass(bl['auc_pr'], 0.80)} | {_pass(gs['auc_pr'], 0.80)} | {_pass(bi['auc_pr'], 0.80)} |",
-        f"| Prec @ Recall=0.8 | ≥ 0.70 | {_pass(bl['prec_at_r80'], 0.70)} | {_pass(gs['prec_at_r80'], 0.70)} | {_pass(bi['prec_at_r80'], 0.70)} |",
-        f"| False Positive Rate | ≤ 0.05 | {_pass(bl['fpr'], 0.05, lower=True)} | {_pass(gs['fpr'], 0.05, lower=True)} | {_pass(bi['fpr'], 0.05, lower=True)} |",
-        f"| Inference P95 | < 200 ms | — | {p95} ms {sla} | — |",
-        f"| Throughput | — | — | {tput} req/s | — |",
+        "| Metric | Target | XGBoost Baseline | GraphSAGE | BiLSTM | Late-Fusion MLP |",
+        "|--------|--------|-----------------|-----------|--------|-----------------|",
+        f"| AUC-PR (primary) | ≥ 0.80 | {_pass(bl['auc_pr'], 0.80)} | {_pass(gs['auc_pr'], 0.80)} | {_pass(bi['auc_pr'], 0.80)} | {_pass(fu['auc_pr'], 0.80)} |",
+        f"| Prec @ Recall=0.8 | ≥ 0.70 | {_pass(bl['prec_at_r80'], 0.70)} | {_pass(gs['prec_at_r80'], 0.70)} | {_pass(bi['prec_at_r80'], 0.70)} | {_pass(fu['prec_at_r80'], 0.70)} |",
+        f"| False Positive Rate | ≤ 0.05 | {_pass(bl['fpr'], 0.05, lower=True)} | {_pass(gs['fpr'], 0.05, lower=True)} | {_pass(bi['fpr'], 0.05, lower=True)} | {_pass(fu['fpr'], 0.05, lower=True)} |",
+        f"| Inference P95 | < 200 ms | — | {p95} ms {sla} | — | — |",
+        f"| Throughput | — | — | {tput} req/s | — | — |",
         "",
         "### AUC-PR Comparison",
         "",
-        f"![AUC-PR Chart](reports/figures/cml_auc_pr.png)",
+        "![AUC-PR Chart](reports/figures/cml_auc_pr.png)",
         "",
         "### Multi-Metric Comparison",
         "",
-        f"![Multi-Metric Chart](reports/figures/cml_metrics.png)",
+        "![Multi-Metric Chart](reports/figures/cml_metrics.png)",
         "",
+    ]
+
+    lines += build_delta_section(data)
+
+    lines += [
         "### GraphSAGE Experiment Runs",
         "",
         "| Run | lr | Hidden | Dropout | Val AUC-PR | Test AUC-PR | Time |",
@@ -206,7 +294,7 @@ def build_report(data: dict, chart1: Path, chart2: Path) -> str:
         "| GraphSAGE encoder | ✅ Trained — AUC-PR 0.9299 |",
         "| BiLSTM encoder | ✅ Trained — AUC-PR 0.9380 |",
         "| DistilBERT encoder | ✅ Trained — AUC-PR 0.84 |",
-        "| Late-fusion MLP | 🔲 Pending training run |",
+        f"| Late-fusion MLP | {'✅ Trained — AUC-PR ' + str(fu['auc_pr']) if fu['auc_pr'] > 0 else '🔲 Pending training run'} |",
         "| SHAP force plots | 🔲 Pending |",
         "",
         "---",

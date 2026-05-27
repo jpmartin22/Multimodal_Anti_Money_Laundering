@@ -426,6 +426,55 @@ make lint      # Ruff + mypy
 
 ---
 
+## Testing
+
+### Running tests locally
+
+```bash
+# All tests (unit + integration)
+pytest tests/ -v
+
+# With coverage report
+pytest tests/ --cov=multimodal_anti_money_laundering --cov-report=term-missing
+
+# Only integration tests (no heavy ML deps required)
+pytest tests/test_integration.py -v
+
+# Only API/serving tests
+pytest tests/test_serving.py -v
+```
+
+### Test structure
+
+| File | What it covers |
+|---|---|
+| `tests/test_model.py` | `BaseModel` / `Model` scaffold — save/load, config, interface contracts |
+| `tests/test_serving.py` | FastAPI endpoints — `/health`, `/predict` schema validation, error cases |
+| `tests/test_integration.py` | Full lightweight pipeline — feature engineering, AML metrics, evaluation gate, I/O helpers, seed utility, end-to-end chain |
+
+### Coverage notes
+
+Unit and integration tests cover the **lightweight CPU path** (evaluation, features, utils, serving schemas) at >80% without requiring torch, transformers, or DVC-tracked data. Training scripts (`train_bilstm.py`, `train_distilbert.py`, `train_graphsage.py`, `train_fusion.py`) require GPU/data artifacts and are tested via the DVC pipeline smoke test (`make data && make train`) locally only.
+
+### CI workflows
+
+| Workflow | Trigger | What runs |
+|---|---|---|
+| `ci.yml` | Push / PR to master | Ruff lint + format, mypy, pytest (Python 3.10 & 3.11), Codecov upload, AUC-PR gate |
+| `docker-build.yml` | Push / PR to master, version tags, manual dispatch | Docker build + health smoke-test, push all images to GHCR |
+| `cml.yml` | Push / PR to master, manual dispatch | Model metrics report generated and posted as PR comment |
+
+### Pre-commit hooks (local)
+
+```bash
+pre-commit install          # Install hooks once
+pre-commit run --all-files  # Run manually
+```
+
+Hooks run: `ruff` (lint + fix), `ruff-format`, `mypy`, `trailing-whitespace`, `end-of-file-fixer`, `check-yaml`.
+
+---
+
 ## Technology Stack
 
 | Library | Version | Role |

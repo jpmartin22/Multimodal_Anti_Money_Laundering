@@ -38,8 +38,16 @@ jobs:
             "mlflow>=2.16.0"
           pip install -e . --no-deps
 
-      - name: Generate comparison plots
+      - name: Generate comparison plots and report
         run: python scripts/cml_report.py
+
+      # Upload charts so the markdown image links resolve in the PR comment
+      - name: Upload report figures
+        uses: actions/upload-artifact@v4
+        with:
+          name: cml-figures
+          path: reports/figures/
+          retention-days: 30
 
       - name: Post CML report as PR comment
         uses: iterative/cml@v2
