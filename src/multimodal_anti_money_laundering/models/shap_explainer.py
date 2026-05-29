@@ -226,27 +226,39 @@ def run(args: argparse.Namespace) -> None:
     }
     logger.info("Modality importance: %s", modality_importance)
 
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(8, 4))
     names = list(modality_importance.keys())
     values = list(modality_importance.values())
     colors = ["#e74c3c", "#3498db", "#2ecc71"]
-    bars = ax.barh(names, values, color=colors)
-    ax.set_xlabel("Mean |SHAP value|")
-    ax.set_title("AML Modality Importance (SHAP)")
+    bars = ax.barh(names, values, color=colors, edgecolor="white", height=0.5)
+
+    # Use scientific notation so x-axis labels don't overlap
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:.1e}"))
+    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+    plt.xticks(fontsize=9)
+
+    ax.set_xlabel("Mean |SHAP value|", fontsize=11)
+    ax.set_title("AML Modality Importance (SHAP)", fontsize=13, pad=12)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    max_val = max(values)
     for bar, val in zip(bars, values):
         ax.text(
-            val + 0.0002,
+            val + max_val * 0.02,
             bar.get_y() + bar.get_height() / 2,
             f"{val:.4f}",
             va="center",
             fontsize=10,
+            fontweight="bold",
         )
+    ax.set_xlim(0, max_val * 1.25)
     plt.tight_layout()
     for dest in [
         OUTPUTS_DIR / "shap_summary_plot.png",
         REPORTS_DIR / "shap_summary_plot.png",
     ]:
-        plt.savefig(dest, dpi=150)
+        plt.savefig(dest, dpi=150, bbox_inches="tight")
     plt.close()
     logger.info("Summary plot saved to %s and %s", OUTPUTS_DIR, REPORTS_DIR)
 
