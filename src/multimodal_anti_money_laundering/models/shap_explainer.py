@@ -191,29 +191,112 @@ def run(args: argparse.Namespace) -> None:
     np.save(REPORTS_DIR / "shap_values.npy", shap_values)
     logger.info("SHAP values saved to %s", REPORTS_DIR / "shap_values.npy")
 
-    # ── Force plot for the most suspicious transaction ─────────────────────────
+    # ── Modality-level waterfall for the most suspicious transaction ─────────────
+    # Aggregating 896 individual SHAP values into 3 modality contributions
+    # gives a clean, readable plot vs. the unreadable per-feature force plot.
     probs = predict_fn(test_X)
     most_suspicious = int(np.argmax(probs))
+    sv = shap_values[most_suspicious]
+    true_label = int(labels[test_idx[most_suspicious]])
+    score = float(probs[most_suspicious])
     logger.info(
         "Force plot: sample index %d  score=%.4f  true_label=%d",
         most_suspicious,
-        probs[most_suspicious],
-        int(labels[test_idx[most_suspicious]]),
+        score,
+        true_label,
     )
 
-    shap.force_plot(
-        explainer.expected_value,
-        shap_values[most_suspicious],
-        test_X[most_suspicious],
-        feature_names=feature_names,
-        matplotlib=True,
-        show=False,
+    modality_shap = {
+        "GraphSAGE\n(graph topology)": float(sv[:64].sum()),
+        "BiLSTM\n(time-series)": float(sv[64:128].sum()),
+        "DistilBERT\n(memo text)": float(sv[128:].sum()),
+    }
+    base_val = float(explainer.expected_value)
+
+    fig, ax = plt.subplots(figsize=(9, 4))
+    modalities = list(modality_shap.keys())
+    contributions = list(modality_shap.values())
+    colors = ["#e74c3c" if v >= 0 else "#3498db" for v in contributions]
+
+    # Stacked waterfall: running left edge
+    running = base_val
+    bar_lefts, bar_widths = [], []
+    for c in contributions:
+        bar_lefts.append(min(running, running + c))
+        bar_widths.append(abs(c))
+        running += c
+
+    bars = ax.barh(
+        modalities,
+        bar_widths,
+        left=bar_lefts,
+        color=colors,
+        edgecolor="white",
+        height=0.45,
     )
+
+    # Connector lines between bars
+    running = base_val
+    for i, c in enumerate(contributions):
+        right_edge = running + c
+        if i < len(contributions) - 1:
+            ax.plot(
+                [right_edge, right_edge],
+                [i + 0.225, i + 0.775],
+                color="gray",
+                linewidth=0.8,
+                linestyle="--",
+            )
+        running = right_edge
+
+    # Value labels
+    running = base_val
+    for i, (bar, c) in enumerate(zip(bars, contributions)):
+        sign = "+" if c >= 0 else ""
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_y() + bar.get_height() / 2,
+            f"{sign}{c:.4f}",
+            ha="center",
+            va="center",
+            fontsize=9,
+            fontweight="bold",
+            color="white",
+        )
+        running += c
+
+    ax.axvline(
+        base_val,
+        color="gray",
+        linewidth=1.2,
+        linestyle=":",
+        label=f"Base value = {base_val:.3f}",
+    )
+    ax.axvline(
+        score,
+        color="#2c3e50",
+        linewidth=1.5,
+        linestyle="-",
+        label=f"Prediction = {score:.4f}",
+    )
+
+    ax.set_xlabel("SHAP contribution (logit space)", fontsize=11)
+    ax.set_title(
+        f"SHAP Modality Contributions — Most Suspicious Transaction\n"
+        f"(score={score:.4f}, true label={'Illicit' if true_label == 1 else 'Licit'})",
+        fontsize=12,
+        pad=10,
+    )
+    ax.legend(fontsize=9, loc="lower right")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    plt.tight_layout()
+
     for dest in [
         OUTPUTS_DIR / "shap_force_plot.png",
         REPORTS_DIR / "shap_force_plot.png",
     ]:
-        plt.savefig(dest, bbox_inches="tight", dpi=150)
+        plt.savefig(dest, dpi=150, bbox_inches="tight")
     plt.close()
     logger.info("Force plot saved to %s and %s", OUTPUTS_DIR, REPORTS_DIR)
 
