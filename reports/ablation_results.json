@@ -39,12 +39,12 @@
     }
   },
   "full_fusion": {
-    "auc_pr": 0.9472,
-    "f1_fraud": 0.904,
-    "precision_fraud": 0.9329,
-    "recall_fraud": 0.8768,
-    "val_auc_pr": 0.9513,
-    "best_threshold": 0.7398,
+    "auc_pr": 0.9973,
+    "f1_fraud": 0.9853,
+    "precision_fraud": 0.9911,
+    "recall_fraud": 0.9795,
+    "val_auc_pr": 0.9973,
+    "best_threshold": 0.4624,
     "modalities": {
       "graphsage": true,
       "bilstm": true,
