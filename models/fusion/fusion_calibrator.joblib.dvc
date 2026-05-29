@@ -1,0 +1,5 @@
+outs:
+- md5: c405dd7519c9db3bf01f889b72a62fdf
+  size: 879
+  hash: md5
+  path: fusion_calibrator.joblib

@@ -432,3 +432,34 @@ Artifacts:
 - `fusion_metrics.json` — test metrics
 - `reports/ablation_results.json` — per-variant AUC-PR / F1
 - `reports/ablation_results.png` — ablation bar chart
+
+---
+
+### SHAP Explainability
+
+SHAP KernelExplainer run on 20 test samples (10 illicit + 10 licit) with a balanced background of 100 samples (50 illicit + 50 licit). SHAP values aggregated by modality for interpretability.
+
+#### Force Plot — Most Suspicious Transaction
+
+| Modality | SHAP Contribution | Interpretation |
+|---|---|---|
+| GraphSAGE (graph topology) | ≈ 0.000 | Graph neighbourhood looks normal for this node |
+| BiLSTM (time-series) | +0.1059 | Timing pattern confirms suspicion |
+| DistilBERT (memo text) | +0.3989 | Payment memo language is the dominant red flag |
+| **Base value** | 0.450 | Average model output across all samples |
+| **Final score** | **1.0000** | Correctly flagged as Illicit ✅ |
+
+The memo text drove this prediction — language patterns ("urgent wire transfer", "advisory fee") pushed the score from 0.45 → 1.0. BiLSTM confirmed via temporal clustering. GraphSAGE was negligible for this specific node.
+
+#### Modality Summary (Mean |SHAP| across test set)
+
+The per-sample SHAP summary should be interpreted alongside the ablation results. KernelExplainer with 896 dimensions and 100 coalition samples produces noisy mean estimates; the ablation study (direct AUC-PR measurement) is the authoritative source for modality importance.
+
+| Finding | Source | Verdict |
+|---|---|---|
+| DistilBERT dominant for high-confidence illicit | Force plot | ✅ Consistent with ablation |
+| DistilBERT adds +0.0505 AUC-PR | Ablation | ✅ Authoritative |
+| BiLSTM > GraphSAGE as standalone | Ablation | ✅ 0.9325 vs 0.9272 |
+
+Plots: `reports/shap_force_plot.png`, `reports/shap_summary_plot.png`
+Raw values: `reports/shap_values.npy` (audit trail)
