@@ -1,0 +1,5 @@
+outs:
+- md5: 597c4b47122f3113464ec8b992b4ec57
+  size: 143044736
+  hash: md5
+  path: distilbert_cls.npy
