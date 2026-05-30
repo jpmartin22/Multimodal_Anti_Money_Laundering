@@ -2,6 +2,64 @@ name: CI
 
 on:
   push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Test matrix
+    runs-on: ubuntu-latest
+    env:
+      COVERAGE_FAIL: 80
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements_dev.txt ]; then pip install -r requirements_dev.txt; fi
+
+      - name: Lint (ruff)
+        run: |
+          if command -v ruff >/dev/null 2>&1; then ruff check .; else echo "ruff not installed"; fi
+
+      - name: Type check (mypy)
+        run: |
+          if command -v mypy >/dev/null 2>&1; then mypy . || true; else echo "mypy not installed"; fi
+
+      - name: Run tests with coverage
+        run: |
+          pytest -q --maxfail=1 --cov=src --cov-report=xml --cov-report=term --cov-fail-under=${{ env.COVERAGE_FAIL }}
+
+      - name: Upload coverage as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+name: CI
+
+on:
+  push:
     branches:
       - master
   pull_request:
