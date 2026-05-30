@@ -144,7 +144,6 @@ def run(args: argparse.Namespace) -> None:
     device = torch.device("cpu")  # KernelExplainer is CPU-bound anyway
 
     fused, labels = load_fused_embeddings(device)
-    feature_names = make_feature_names(fused.shape[1])
 
     # Load fusion model
     fusion = LateFusionMLP()
