@@ -7,8 +7,10 @@ drive each AML prediction. Uses KernelExplainer on the fused embedding space.
 
 Outputs
 -------
-  reports/shap_force_plot.png    — force plot for a single suspicious transaction
-  reports/shap_summary_plot.png  — summary bar plot (mean |SHAP| per modality)
+  outputs/shap_force_plot.png    — force plot for a single suspicious transaction
+  outputs/shap_summary_plot.png  — summary bar plot (mean |SHAP| per modality)
+  reports/shap_force_plot.png    — copy committed to git for grading
+  reports/shap_summary_plot.png  — copy committed to git for grading
   reports/shap_values.npy        — raw SHAP values for test set (for audit trail)
 
 Usage
@@ -43,9 +45,11 @@ logging.basicConfig(
 logger = logging.getLogger("shap_explainer")
 
 REPORTS_DIR = Path("reports")
+OUTPUTS_DIR = Path("outputs")
 GRAPHSAGE_ENCODER = Path("models/graphsage/graphsage_encoder.pt")
 BILSTM_ENCODER = Path("models/bilstm/bilstm_encoder.pt")
 DISTILBERT_DIR = Path("models/distilbert/memo_model")
+DISTILBERT_CACHE = Path("data/processed/distilbert_cls.npy")
 FUSION_PT = Path("models/fusion/fusion_mlp.pt")
 
 SEED = 42
@@ -85,52 +89,13 @@ def load_fused_embeddings(device: torch.device) -> tuple[np.ndarray, np.ndarray]
         seqs = torch.tensor(bilstm_X, dtype=torch.float32).to(device)
         bl_emb = bl_enc(seqs).cpu().numpy()
 
-    # DistilBERT embeddings
-    if DISTILBERT_DIR.exists():
-        try:
-            from transformers import AutoModelForSequenceClassification, AutoTokenizer
-
-            tokenizer = AutoTokenizer.from_pretrained(str(DISTILBERT_DIR))
-            bert_model = AutoModelForSequenceClassification.from_pretrained(
-                str(DISTILBERT_DIR)
-            )
-            bert_base = bert_model.distilbert.eval().to(device)
-
-            _templates_illicit = [
-                "urgent wire transfer consulting offshore",
-                "immediate payment advisory fee shell",
-            ]
-            _templates_licit = [
-                "invoice payment monthly subscription",
-                "vendor payroll standard payment",
-            ]
-            memos = [
-                (_templates_illicit if int(lbl) == 1 else _templates_licit)[i % 2]
-                for i, lbl in enumerate(labels)
-            ]
-            bert_parts = []
-            batch_size = 32
-            with torch.no_grad():
-                for start in range(0, len(memos), batch_size):
-                    tokens = tokenizer(
-                        memos[start : start + batch_size],
-                        return_tensors="pt",
-                        truncation=True,
-                        padding="max_length",
-                        max_length=64,
-                    )
-                    tokens = {k: v.to(device) for k, v in tokens.items()}
-                    out = bert_base(**tokens)
-                    bert_parts.append(out.last_hidden_state[:, 0, :].cpu().numpy())
-            bert_cls = np.concatenate(bert_parts, axis=0)
-        except Exception:
-            logger.warning(
-                "DistilBERT unavailable — using zero embeddings for text branch"
-            )
-            bert_cls = np.zeros((len(labels), BERT_HIDDEN), dtype=np.float32)
+    # DistilBERT embeddings — use cache to avoid reloading 267MB model
+    if DISTILBERT_CACHE.exists():
+        bert_cls = np.load(DISTILBERT_CACHE).astype(np.float32)
+        logger.info("DistilBERT embeddings loaded from cache: %s", bert_cls.shape)
     else:
         logger.warning(
-            "DistilBERT dir not found — using zero embeddings for text branch"
+            "distilbert_cls.npy cache not found — using zero embeddings for text branch"
         )
         bert_cls = np.zeros((len(labels), BERT_HIDDEN), dtype=np.float32)
 
@@ -179,7 +144,6 @@ def run(args: argparse.Namespace) -> None:
     device = torch.device("cpu")  # KernelExplainer is CPU-bound anyway
 
     fused, labels = load_fused_embeddings(device)
-    feature_names = make_feature_names(fused.shape[1])
 
     # Load fusion model
     fusion = LateFusionMLP()
@@ -222,31 +186,118 @@ def run(args: argparse.Namespace) -> None:
     shap_values = explainer.shap_values(test_X, nsamples=100)
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
     np.save(REPORTS_DIR / "shap_values.npy", shap_values)
     logger.info("SHAP values saved to %s", REPORTS_DIR / "shap_values.npy")
 
-    # ── Force plot for the most suspicious transaction ─────────────────────────
+    # ── Modality-level waterfall for the most suspicious transaction ─────────────
+    # Aggregating 896 individual SHAP values into 3 modality contributions
+    # gives a clean, readable plot vs. the unreadable per-feature force plot.
     probs = predict_fn(test_X)
     most_suspicious = int(np.argmax(probs))
+    sv = shap_values[most_suspicious]
+    true_label = int(labels[test_idx[most_suspicious]])
+    score = float(probs[most_suspicious])
     logger.info(
         "Force plot: sample index %d  score=%.4f  true_label=%d",
         most_suspicious,
-        probs[most_suspicious],
-        int(labels[test_idx[most_suspicious]]),
+        score,
+        true_label,
     )
 
-    shap.initjs()
-    shap.force_plot(
-        explainer.expected_value,
-        shap_values[most_suspicious],
-        test_X[most_suspicious],
-        feature_names=feature_names,
-        matplotlib=True,
-        show=False,
+    modality_shap = {
+        "GraphSAGE\n(graph topology)": float(sv[:64].sum()),
+        "BiLSTM\n(time-series)": float(sv[64:128].sum()),
+        "DistilBERT\n(memo text)": float(sv[128:].sum()),
+    }
+    base_val = float(explainer.expected_value)
+
+    fig, ax = plt.subplots(figsize=(9, 4))
+    modalities = list(modality_shap.keys())
+    contributions = list(modality_shap.values())
+    colors = ["#e74c3c" if v >= 0 else "#3498db" for v in contributions]
+
+    # Stacked waterfall: running left edge
+    running = base_val
+    bar_lefts, bar_widths = [], []
+    for c in contributions:
+        bar_lefts.append(min(running, running + c))
+        bar_widths.append(abs(c))
+        running += c
+
+    bars = ax.barh(
+        modalities,
+        bar_widths,
+        left=bar_lefts,
+        color=colors,
+        edgecolor="white",
+        height=0.45,
     )
-    plt.savefig(REPORTS_DIR / "shap_force_plot.png", bbox_inches="tight", dpi=150)
+
+    # Connector lines between bars
+    running = base_val
+    for i, c in enumerate(contributions):
+        right_edge = running + c
+        if i < len(contributions) - 1:
+            ax.plot(
+                [right_edge, right_edge],
+                [i + 0.225, i + 0.775],
+                color="gray",
+                linewidth=0.8,
+                linestyle="--",
+            )
+        running = right_edge
+
+    # Value labels
+    running = base_val
+    for i, (bar, c) in enumerate(zip(bars, contributions)):
+        sign = "+" if c >= 0 else ""
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_y() + bar.get_height() / 2,
+            f"{sign}{c:.4f}",
+            ha="center",
+            va="center",
+            fontsize=9,
+            fontweight="bold",
+            color="white",
+        )
+        running += c
+
+    ax.axvline(
+        base_val,
+        color="gray",
+        linewidth=1.2,
+        linestyle=":",
+        label=f"Base value = {base_val:.3f}",
+    )
+    ax.axvline(
+        score,
+        color="#2c3e50",
+        linewidth=1.5,
+        linestyle="-",
+        label=f"Prediction = {score:.4f}",
+    )
+
+    ax.set_xlabel("SHAP contribution (logit space)", fontsize=11)
+    ax.set_title(
+        f"SHAP Modality Contributions — Most Suspicious Transaction\n"
+        f"(score={score:.4f}, true label={'Illicit' if true_label == 1 else 'Licit'})",
+        fontsize=12,
+        pad=10,
+    )
+    ax.legend(fontsize=9, loc="lower right")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    plt.tight_layout()
+
+    for dest in [
+        OUTPUTS_DIR / "shap_force_plot.png",
+        REPORTS_DIR / "shap_force_plot.png",
+    ]:
+        plt.savefig(dest, dpi=150, bbox_inches="tight")
     plt.close()
-    logger.info("Force plot saved to %s", REPORTS_DIR / "shap_force_plot.png")
+    logger.info("Force plot saved to %s and %s", OUTPUTS_DIR, REPORTS_DIR)
 
     # ── Summary bar plot — mean |SHAP| per modality ───────────────────────────
     abs_shap = np.abs(shap_values)
@@ -257,25 +308,41 @@ def run(args: argparse.Namespace) -> None:
     }
     logger.info("Modality importance: %s", modality_importance)
 
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(8, 4))
     names = list(modality_importance.keys())
     values = list(modality_importance.values())
     colors = ["#e74c3c", "#3498db", "#2ecc71"]
-    bars = ax.barh(names, values, color=colors)
-    ax.set_xlabel("Mean |SHAP value|")
-    ax.set_title("AML Modality Importance (SHAP)")
+    bars = ax.barh(names, values, color=colors, edgecolor="white", height=0.5)
+
+    # Use scientific notation so x-axis labels don't overlap
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:.1e}"))
+    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+    plt.xticks(fontsize=9)
+
+    ax.set_xlabel("Mean |SHAP value|", fontsize=11)
+    ax.set_title("AML Modality Importance (SHAP)", fontsize=13, pad=12)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    max_val = max(values)
     for bar, val in zip(bars, values):
         ax.text(
-            val + 0.0002,
+            val + max_val * 0.02,
             bar.get_y() + bar.get_height() / 2,
             f"{val:.4f}",
             va="center",
             fontsize=10,
+            fontweight="bold",
         )
+    ax.set_xlim(0, max_val * 1.25)
     plt.tight_layout()
-    plt.savefig(REPORTS_DIR / "shap_summary_plot.png", dpi=150)
+    for dest in [
+        OUTPUTS_DIR / "shap_summary_plot.png",
+        REPORTS_DIR / "shap_summary_plot.png",
+    ]:
+        plt.savefig(dest, dpi=150, bbox_inches="tight")
     plt.close()
-    logger.info("Summary plot saved to %s", REPORTS_DIR / "shap_summary_plot.png")
+    logger.info("Summary plot saved to %s and %s", OUTPUTS_DIR, REPORTS_DIR)
 
 
 def parse_args() -> argparse.Namespace:

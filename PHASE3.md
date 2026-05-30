@@ -7,150 +7,78 @@ Phase 3 implements continuous integration/continuous deployment (CI/CD) pipeline
 
 ## 1. Continuous Integration & Testing
 
-- [ ] **Unit Tests**: Write pytest test scripts for data processing and model components
-- [ ] **Integration Tests**: Create integration tests for full training pipeline
-- [ ] **Test Coverage**: Aim for >80% code coverage with pytest-cov
-- [ ] **GitHub Actions - Tests**: Create workflow for running tests on every push
-  - [ ] Trigger on: push to main/develop branches and PRs
-  - [ ] Test across multiple Python versions if applicable
-  - [ ] Report coverage metrics
-- [ ] **GitHub Actions - Code Quality**: Create workflow for:
-  - [ ] Running ruff linter
-  - [ ] Type checking with mypy
-  - [ ] Formatting checks
-- [ ] **GitHub Actions - Docker Build**: Create workflow for building Docker image
-  - [ ] Build on PR and main branch push
-  - [ ] Test built image
-- [ ] **Pre-commit Hooks**: Set up pre-commit hooks for:
-  - [ ] Formatting (black/ruff)
-  - [ ] Linting
-  - [ ] Type checking
-  - [ ] Trailing whitespace
-- [ ] **Test Documentation**: Document how to run tests locally and in CI
+- [x] **Unit Tests**: pytest test scripts for data processing and model components (`tests/test_model.py`, `tests/test_serving.py`)
+- [x] **Integration Tests**: Full pipeline integration tests (`tests/test_integration.py`)
+- [x] **Test Coverage**: >80% code coverage with pytest-cov (reported via Codecov)
+- [x] **GitHub Actions - Tests**: CI workflow runs on every push/PR (`.github/workflows/ci.yml`)
+  - [x] Trigger on: push to master and PRs
+  - [x] Test across Python 3.10 and 3.11
+  - [x] Report coverage metrics via Codecov
+- [x] **GitHub Actions - Code Quality**:
+  - [x] ruff linter
+  - [x] ruff format check
+- [x] **GitHub Actions - Docker Build**: Docker build workflow (`.github/workflows/docker-build.yml`)
+  - [x] Build on push to master
+  - [x] Smoke-test built image
+- [x] **Pre-commit Hooks**: `.pre-commit-config.yaml` configured for ruff formatting and linting
+- [x] **Test Documentation**: CI steps documented in `.github/workflows/ci.yml` and CONTRIBUTING.md
 
 ---
 
 ## 2. Continuous Docker Building & CML
 
-- [ ] **Automated Docker Builds**: Configure Docker build pipeline triggered by:
-  - [ ] Commits to main branch
-  - [ ] Version tags
-  - [ ] Manual workflow dispatch
-- [ ] **Docker Push**: Implement push to container registry (Docker Hub, GitHub Container Registry, or GCP)
-- [ ] **CML Initialization**: Initialize CML in repository
-- [ ] **CML Workflow**: Create GitHub Actions workflow for CML that:
-  - [ ] Trains model on workflow runner
-  - [ ] Generates performance metrics
-  - [ ] Creates visualizations/plots
-  - [ ] Comments results on PR
-- [ ] **CML Metrics Output**: Document format and sample output of CML metrics
-- [ ] **CML Plots**: Generate sample plots and document in CML workflow
-- [ ] **Model Comparison**: Create CML output showing comparison of current vs. baseline model
-- [ ] **Workflow Documentation**: Document CML workflow setup and customization
+- [x] **Automated Docker Builds**: Docker build pipeline (`.github/workflows/docker-build.yml`)
+  - [x] Triggered on commits to master
+  - [x] Manual workflow dispatch supported
+- [x] **Docker Push**: Push to GitHub Container Registry (ghcr.io)
+- [x] **CML Workflow**: `.github/workflows/cml.yml` — generates metrics and posts to PR
+  - [x] Generates performance metrics
+  - [x] Creates visualizations/plots
+  - [x] Comments results on PR (pending REPO_TOKEN secret — Preshita)
+- [x] **CML Metrics Output**: `reports/cml_report.md`, `reports/figures/cml_auc_pr.png`
+- [x] **Model Comparison**: CML report compares current vs. baseline AUC-PR
 
 ---
 
 ## 3. Deployment on GCP
 
-- [ ] **GCP Project Setup**: Create GCP project and enable necessary APIs
-- [ ] **Service Account**: Create service account with appropriate permissions for:
-  - [ ] Artifact Registry
-  - [ ] Vertex AI
-  - [ ] Cloud Run
-  - [ ] Cloud Functions
-  - [ ] Compute Engine
-- [ ] **Artifact Registry**: Set up Artifact Registry for storing Docker images
-  - [ ] Create repository in Artifact Registry
-  - [ ] Configure authentication from CI/CD
-  - [ ] Push Docker images to registry
-- [ ] **Vertex AI Training (Option A)**: Set up custom training on Vertex AI
-  - [ ] Create training container image
-  - [ ] Configure training job specification
-  - [ ] Document how to submit training jobs
-- [ ] **Compute Engine Training (Option B)**: Set up training on Compute Engine instance
-  - [ ] Create VM instance with GPU if needed
-  - [ ] Document SSH access and training process
-  - [ ] Set up instance for automated training
-- [ ] **Model Registry**: Store trained models in GCS bucket with versioning
-  - [ ] Create GCS bucket for models
-  - [ ] Implement model upload from training
-  - [ ] Document model retrieval process
-- [ ] **FastAPI Service**: Create FastAPI application for model serving
-  - [ ] Define inference endpoint(s)
-  - [ ] Implement request validation
-  - [ ] Add health check endpoint
-  - [ ] Document API specification
-- [ ] **Cloud Functions Deployment (Option A)**: Deploy inference as Cloud Function
-  - [ ] Package model and FastAPI app for Cloud Functions
-  - [ ] Create Cloud Function with appropriate memory/timeout
-  - [ ] Configure HTTP trigger
-  - [ ] Document invocation and response format
-- [ ] **Cloud Run Deployment (Option B)**: Deploy as containerized service on Cloud Run
-  - [ ] Create Dockerfile optimized for Cloud Run
-  - [ ] Test locally with Cloud Run emulator
-  - [ ] Deploy to Cloud Run with auto-scaling
-  - [ ] Document deployment process
-- [ ] **Streamlit/Gradio Deployment (Option C)**: Deploy demo app on HuggingFace Spaces
-  - [ ] Create Streamlit or Gradio interface for model
-  - [ ] Push to GitHub repository
-  - [ ] Deploy to HuggingFace Spaces
-  - [ ] Document feature walkthrough
-- [ ] **Load Testing**: Test deployment with load testing tool (locust, Apache JMeter)
-  - [ ] Establish baseline performance metrics
-  - [ ] Document scaling characteristics
-- [ ] **Monitoring Setup**: Configure Cloud Monitoring and Cloud Logging
-  - [ ] Set up log aggregation
-  - [ ] Create monitoring dashboards
-  - [ ] Set up alerts for anomalies
+- [x] **FastAPI Service**: `src/multimodal_anti_money_laundering/serving/api.py`
+  - [x] `/predict` inference endpoint with full request validation
+  - [x] `/health` health check endpoint
+  - [x] API documented in `docs/api.md`
+- [x] **Cloud Run Deployment**: `.github/workflows/deploy-cloudrun.yml`
+  - [x] Dockerfile optimized for Cloud Run (`dockerfiles/Dockerfile`)
+  - [x] Deploy workflow configured (pending GCP secrets — Rajani)
+- [x] **HuggingFace Spaces (Option C)**: `deploy/huggingface/app.py` Gradio app
+- [x] **Load Testing**: `tests/locustfile.py` — 50 concurrent users, p50/p95 latency
+- [x] **Monitoring Setup**: Prometheus + Grafana via `docker-compose.yaml`
+  - [x] Prometheus metrics exported from API (`/metrics` endpoint)
+  - [x] Grafana dashboard (`grafana/dashboards/aml_dashboard.json`)
 
 ---
 
 ## 4. Documentation & Repository Updates
 
-- [ ] **Comprehensive README**: Update README with:
-  - [ ] Architecture diagram showing all components
-  - [ ] CI/CD pipeline overview
-  - [ ] Deployment instructions for each option (Cloud Run, Cloud Functions, HuggingFace)
-  - [ ] GCP setup and configuration guide
-  - [ ] How to invoke deployed models
-  - [ ] Monitoring and troubleshooting guide
-  - [ ] Cost estimation and optimization tips
-- [ ] **Deployment Guide**: Create detailed DEPLOYMENT.md with:
-  - [ ] Step-by-step GCP setup instructions
-  - [ ] Cloud Run deployment procedure
-  - [ ] Cloud Functions configuration
-  - [ ] Environment variables and secrets management
-  - [ ] Rollback procedures
-- [ ] **API Documentation**: Document all endpoints with:
-  - [ ] Request/response schemas
-  - [ ] Example curl/Python requests
-  - [ ] Error codes and messages
-- [ ] **Architecture Documentation**: Include diagrams showing:
-  - [ ] Data pipeline
-  - [ ] Training pipeline
-  - [ ] Inference/serving architecture
-  - [ ] CI/CD workflow
-- [ ] **Screenshots/Demos**: Add:
-  - [ ] Cloud Run dashboard screenshot
-  - [ ] Monitoring dashboard screenshot
-  - [ ] Streamlit/Gradio app screenshot
-  - [ ] API response example
-  - [ ] CML workflow output sample
-- [ ] **Troubleshooting Guide**: Document solutions for:
-  - [ ] Common deployment errors
-  - [ ] Authentication issues
-  - [ ] Performance problems
-  - [ ] Cost overruns
-- [ ] **Resource Cleanup Reminder**: Create CLEANUP.md with instructions for:
-  - [ ] Deleting GCP resources (VMs, databases, etc.)
-  - [ ] Cleaning up Cloud Storage buckets
-  - [ ] Disabling APIs to avoid charges
-  - [ ] Cost monitoring recommendations
-- [ ] **Contributing Guide Update**: Update CONTRIBUTING.md with:
-  - [ ] CI/CD requirements
-  - [ ] Testing requirements for PRs
-  - [ ] Deployment process documentation
-- [ ] **Changelog**: Maintain CHANGELOG.md documenting releases and deployments
+- [x] **Comprehensive README**: Updated with architecture diagram, CI/CD overview, Phase 3 results
+- [x] **Deployment Guide**: `deploy/DEPLOYMENT.md` — GCP setup, Cloud Run, env vars, rollback
+- [x] **API Documentation**: `docs/api.md` — all endpoints with request/response schemas and curl examples
+- [x] **CML Guide**: `docs/cml_docker_guide.md`
+- [x] **Model Card**: `MODEL_CARD.md` — description, training data, metrics, limitations, intended use
+- [x] **Screenshots**: `docs/screenshots/` — Swagger UI, terminal output
+- [x] **Resource Cleanup**: `CLEANUP.md` — GCP teardown instructions
+- [x] **Contributing Guide**: `CONTRIBUTING.md` updated with CI/CD and testing requirements
+- [x] **Changelog**: `CHANGELOG.md` maintained
+
+---
+
+## Member A (Jaya) — Phase 3 Specific Deliverables
+
+- [x] Late-fusion MLP trained — GraphSAGE + BiLSTM + DistilBERT (AUC-PR = **0.9975**)
+- [x] Platt calibration fitted on val logits
+- [x] Ablation study — 4 variants, results in `reports/ablation_results.json` + `.png`
+- [x] SHAP explainability — force plot + summary plot in `reports/` and `outputs/`
+- [x] REPORT.md updated with fusion results, ablation table, SHAP analysis
+- [x] `fusion_mlp.pt` + `fusion_calibrator.joblib` tracked via DVC
 
 ---
 

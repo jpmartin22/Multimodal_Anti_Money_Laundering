@@ -1,0 +1,5 @@
+outs:
+- md5: a382486fb1f4c1314fbb9955f59b6120
+  size: 332663
+  hash: md5
+  path: fusion_mlp.pt

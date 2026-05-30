@@ -25,77 +25,90 @@ FIGURES.mkdir(parents=True, exist_ok=True)
 
 # ── Load metrics ─────────────────────────────────────────────────────────────
 
+
 def load_metrics() -> dict:
     def _read(p: Path) -> dict:
         return json.loads(p.read_text()) if p.exists() else {}
 
-    gs_raw   = _read(ROOT / "graphsage_metrics.json")
-    bl_raw   = _read(ROOT / "models" / "baseline_metrics.json")
-    bilstm   = _read(ROOT / "bilstm_metrics.json")
-    fusion   = _read(ROOT / "fusion_metrics.json")
-    gs_exp   = _read(ROOT / "reports" / "graphsage_experiment_comparison.json")
-    serving  = _read(ROOT / "reports" / "profiling" / "serving_benchmark.json")
+    gs_raw = _read(ROOT / "graphsage_metrics.json")
+    bl_raw = _read(ROOT / "models" / "baseline_metrics.json")
+    bilstm = _read(ROOT / "bilstm_metrics.json")
+    fusion = _read(ROOT / "fusion_metrics.json")
+    gs_exp = _read(ROOT / "reports" / "graphsage_experiment_comparison.json")
+    serving = _read(ROOT / "reports" / "profiling" / "serving_benchmark.json")
     snapshot = _read(ROOT / "reports" / "baseline_snapshot.json")
 
     gs_test = gs_raw.get("test_metrics", gs_raw)
 
     return {
         "baseline": {
-            "label":       "XGBoost Baseline",
-            "auc_pr":      bl_raw.get("auc_pr", 0),
+            "label": "XGBoost Baseline",
+            "auc_pr": bl_raw.get("auc_pr", 0),
             "prec_at_r80": bl_raw.get("precision_at_r80", 0),
-            "fpr":         bl_raw.get("fpr_at_r80", 1.0),
-            "f1":          bl_raw.get("f1", 0),
-            "colour":      "#d62728",
+            "fpr": bl_raw.get("fpr_at_r80", 1.0),
+            "f1": bl_raw.get("f1", 0),
+            "colour": "#d62728",
         },
         "graphsage": {
-            "label":       "GraphSAGE (best)",
-            "auc_pr":      gs_test.get("auc_pr", 0),
+            "label": "GraphSAGE (best)",
+            "auc_pr": gs_test.get("auc_pr", 0),
             "prec_at_r80": gs_test.get("prec_at_recall_80", 0),
-            "fpr":         gs_test.get("false_positive_rate", 1.0),
-            "f1":          gs_test.get("f1_fraud", 0),
-            "colour":      "#2ca02c",
+            "fpr": gs_test.get("false_positive_rate", 1.0),
+            "f1": gs_test.get("f1_fraud", 0),
+            "colour": "#2ca02c",
         },
         "bilstm": {
-            "label":       "BiLSTM",
-            "auc_pr":      bilstm.get("auc_pr", 0),
+            "label": "BiLSTM",
+            "auc_pr": bilstm.get("auc_pr", 0),
             "prec_at_r80": bilstm.get("prec_at_recall_80", 0),
-            "fpr":         bilstm.get("false_positive_rate", 1.0),
-            "f1":          bilstm.get("f1_fraud", 0),
-            "colour":      "#9467bd",
+            "fpr": bilstm.get("false_positive_rate", 1.0),
+            "f1": bilstm.get("f1_fraud", 0),
+            "colour": "#9467bd",
         },
         "fusion": {
-            "label":       "Late-Fusion MLP",
-            "auc_pr":      fusion.get("auc_pr", 0),
+            "label": "Late-Fusion MLP",
+            "auc_pr": fusion.get("auc_pr", 0),
             "prec_at_r80": fusion.get("prec_at_recall_80", 0),
-            "fpr":         fusion.get("false_positive_rate", 1.0),
-            "f1":          fusion.get("f1_fraud", 0),
-            "colour":      "#17becf",
+            "fpr": fusion.get("false_positive_rate", 1.0),
+            "f1": fusion.get("f1_fraud", 0),
+            "colour": "#17becf",
         },
-        "_serving":  serving,
-        "_gs_exp":   gs_exp,
+        "_serving": serving,
+        "_gs_exp": gs_exp,
         "_snapshot": snapshot,
     }
 
 
 # ── Chart 1: AUC-PR bar chart ────────────────────────────────────────────────
 
+
 def plot_auc_pr(data: dict) -> Path:
-    models  = ["baseline", "graphsage", "bilstm", "fusion"]
-    labels  = [data[m]["label"] for m in models]
-    values  = [data[m]["auc_pr"] for m in models]
+    models = ["baseline", "graphsage", "bilstm", "fusion"]
+    labels = [data[m]["label"] for m in models]
+    values = [data[m]["auc_pr"] for m in models]
     colours = [data[m]["colour"] for m in models]
 
     fig, ax = plt.subplots(figsize=(9, 5))
     bars = ax.bar(labels, values, color=colours, alpha=0.85, zorder=3)
-    ax.axhline(0.80, color="#ff7f0e", linewidth=2, linestyle="--",
-               label="Target AUC-PR = 0.80", zorder=4)
+    ax.axhline(
+        0.80,
+        color="#ff7f0e",
+        linewidth=2,
+        linestyle="--",
+        label="Target AUC-PR = 0.80",
+        zorder=4,
+    )
 
     for bar, val in zip(bars, values):
-        ax.text(bar.get_x() + bar.get_width() / 2,
-                bar.get_height() + 0.01,
-                f"{val:.4f}", ha="center", va="bottom",
-                fontsize=10, fontweight="bold")
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.01,
+            f"{val:.4f}",
+            ha="center",
+            va="bottom",
+            fontsize=10,
+            fontweight="bold",
+        )
 
     ax.set_ylim(0, 1.1)
     ax.set_ylabel("AUC-PR", fontsize=11)
@@ -112,13 +125,14 @@ def plot_auc_pr(data: dict) -> Path:
 
 # ── Chart 2: Multi-metric grouped bar chart ───────────────────────────────────
 
+
 def plot_multi_metric(data: dict) -> Path:
-    models  = ["baseline", "graphsage", "bilstm", "fusion"]
-    labels  = [data[m]["label"] for m in models]
+    models = ["baseline", "graphsage", "bilstm", "fusion"]
+    labels = [data[m]["label"] for m in models]
     metrics = {
-        "AUC-PR":         [data[m]["auc_pr"]      for m in models],
+        "AUC-PR": [data[m]["auc_pr"] for m in models],
         "Prec@Recall=0.8": [data[m]["prec_at_r80"] for m in models],
-        "F1 (fraud)":     [data[m]["f1"]           for m in models],
+        "F1 (fraud)": [data[m]["f1"] for m in models],
     }
 
     x = np.arange(len(labels))
@@ -128,20 +142,35 @@ def plot_multi_metric(data: dict) -> Path:
     palette = ["#1f77b4", "#2ca02c", "#ff7f0e"]
     for i, (metric, vals) in enumerate(metrics.items()):
         offset = (i - 1) * width
-        bars = ax.bar(x + offset, vals, width, label=metric,
-                      color=palette[i], alpha=0.85, zorder=3)
+        bars = ax.bar(
+            x + offset,
+            vals,
+            width,
+            label=metric,
+            color=palette[i],
+            alpha=0.85,
+            zorder=3,
+        )
         for bar, v in zip(bars, vals):
             if v > 0:
-                ax.text(bar.get_x() + bar.get_width() / 2,
-                        bar.get_height() + 0.01,
-                        f"{v:.2f}", ha="center", va="bottom", fontsize=7.5)
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 0.01,
+                    f"{v:.2f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=7.5,
+                )
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=9)
     ax.set_ylim(0, 1.15)
     ax.set_ylabel("Score", fontsize=11)
-    ax.set_title("Multi-Metric Comparison — AUC-PR · Prec@R=0.8 · F1",
-                 fontsize=12, fontweight="bold")
+    ax.set_title(
+        "Multi-Metric Comparison — AUC-PR · Prec@R=0.8 · F1",
+        fontsize=12,
+        fontweight="bold",
+    )
     ax.legend(fontsize=9)
     ax.grid(axis="y", alpha=0.3, zorder=0)
     fig.tight_layout()
@@ -153,6 +182,7 @@ def plot_multi_metric(data: dict) -> Path:
 
 
 # ── Delta comparison: current run vs committed baseline snapshot ──────────────
+
 
 def build_delta_section(data: dict) -> list[str]:
     """Return markdown lines comparing current metrics to baseline_snapshot.json."""
@@ -175,8 +205,8 @@ def build_delta_section(data: dict) -> list[str]:
 
     model_keys = [
         ("graphsage", "GraphSAGE"),
-        ("bilstm",    "BiLSTM"),
-        ("fusion",    "Late-Fusion MLP"),
+        ("bilstm", "BiLSTM"),
+        ("fusion", "Late-Fusion MLP"),
     ]
 
     lines = [
@@ -195,22 +225,22 @@ def build_delta_section(data: dict) -> list[str]:
             continue
 
         metrics_cfg = [
-            ("auc_pr",         "AUC-PR",          False),
-            ("prec_at_r80",    "Prec@Recall=0.8", False),
-            ("fpr",            "FPR",             True),
-            ("f1",             "F1 (fraud)",      False),
+            ("auc_pr", "AUC-PR", False),
+            ("prec_at_r80", "Prec@Recall=0.8", False),
+            ("fpr", "FPR", True),
+            ("f1", "F1 (fraud)", False),
         ]
         snap_key_map = {
-            "auc_pr":      "auc_pr",
+            "auc_pr": "auc_pr",
             "prec_at_r80": "prec_at_recall_80",
-            "fpr":         "false_positive_rate",
-            "f1":          "f1_fraud",
+            "fpr": "false_positive_rate",
+            "f1": "f1_fraud",
         }
 
         for curr_key, display, lower in metrics_cfg:
-            s_key   = snap_key_map[curr_key]
-            s_val   = snap_m.get(s_key, None)
-            c_val   = curr_m.get(curr_key, None)
+            s_key = snap_key_map[curr_key]
+            s_val = snap_m.get(s_key, None)
+            c_val = curr_m.get(curr_key, None)
             if s_val is None or c_val is None:
                 continue
             delta = _delta(c_val, s_val, lower_is_better=lower)
@@ -224,11 +254,12 @@ def build_delta_section(data: dict) -> list[str]:
 
 # ── Build markdown report ─────────────────────────────────────────────────────
 
+
 def build_report(data: dict, chart1: Path, chart2: Path) -> str:
     serving = data.get("_serving", {})
-    p95     = serving.get("p95_ms", "N/A")
-    tput    = serving.get("throughput_rps", "N/A")
-    sla     = "✅" if serving.get("sla_passed") else "❌"
+    p95 = serving.get("p95_ms", "N/A")
+    tput = serving.get("throughput_rps", "N/A")
+    sla = "✅" if serving.get("sla_passed") else "❌"
 
     gs = data["graphsage"]
     bl = data["baseline"]
@@ -274,7 +305,7 @@ def build_report(data: dict, chart1: Path, chart2: Path) -> str:
     ]
 
     gs_exp = data.get("_gs_exp", {})
-    best   = gs_exp.get("best_run", "")
+    best = gs_exp.get("best_run", "")
     for exp in gs_exp.get("experiments", []):
         star = " ★" if exp["Run"] == best else ""
         lines.append(
@@ -306,8 +337,9 @@ def build_report(data: dict, chart1: Path, chart2: Path) -> str:
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
-    data   = load_metrics()
+    data = load_metrics()
     chart1 = plot_auc_pr(data)
     chart2 = plot_multi_metric(data)
     report = build_report(data, chart1, chart2)

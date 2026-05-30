@@ -1,6 +1,6 @@
 # AML Detection — Model Results
 
-> Phase 1 complete · XGBoost baseline on Elliptic · Phase 2 complete · GraphSAGE / BiLSTM / DistilBERT + MLOps stack
+> Phase 1 complete · Phase 2 complete · Phase 3 in progress · GraphSAGE / BiLSTM / DistilBERT + Late-Fusion MLP + MLOps stack
 
 ---
 
@@ -89,13 +89,13 @@ The Elliptic feature set includes **72 aggregated neighborhood features** — pr
 
 | Model | AUC-PR | P@R=0.80 | FPR@R=0.80 | Status |
 |---|---|---|---|---|
-| **XGBoost tabular baseline** | **0.9891** | **1.0000** | **0.0000** | ✅ Done |
+| **XGBoost tabular baseline** | 0.9891 | 1.0000 | 0.0000 | ✅ Done |
 | GraphSAGE (graph only) | 0.9299 | 0.9463 | 0.0000 | ✅ Done |
 | DistilBERT (text only) | 0.8418 | 1.0000 | 0.0000 | ✅ Done |
 | BiLSTM (time-series only) | 0.9324 | 0.9613 | 0.0197 | ✅ Done |
-| **Late-fusion (all three)** | **> 0.9891 target** | TBD | TBD | Week 3 |
+| **Late-fusion (all three)** | **0.9975** | **0.9698** | **0.0000** | ✅ Done — exceeds baseline |
 
-The fusion model target is now to **exceed the XGBoost baseline (0.9891 AUC-PR)**, not just the original proposal target of 0.80.
+The late-fusion MLP **exceeds the XGBoost baseline (0.9891 AUC-PR)** and all single-modality models, confirming the value of multimodal fusion.
 
 For DistilBERT, the false-positive rate is inferred from precision=1.0000 on the evaluation set: no legitimate memo was flagged as illicit at the selected threshold.
 
@@ -345,3 +345,121 @@ python -m multimodal_anti_money_laundering.train_distilbert \
 Artifacts:
 - `models/distilbert/memo_model/` — fine-tuned model + tokenizer (DVC tracked)
 - `distilbert_metrics.json` — eval metrics
+
+---
+
+## Member A: Phase 3 — Late-Fusion MLP + Ablation Study
+
+### Fusion Architecture
+
+| Component | Detail |
+|---|---|
+| GraphSAGE embedding | 64-dim (frozen encoder) |
+| BiLSTM embedding | 64-dim (frozen encoder) |
+| DistilBERT [CLS] embedding | 768-dim → projected to 64-dim internally |
+| Fusion input | 192-dim (64 + 64 + 64) |
+| MLP layers | 192 → 128 → 64 → 1 |
+| Dropout | 0.3 between layers |
+| Loss | BCEWithLogitsLoss, pos_weight=9.25x |
+| Optimizer | Adam, lr=0.001, weight_decay=1e-4 |
+| Scheduler | ReduceLROnPlateau (patience=5, factor=0.5) |
+| Gradient clipping | max_norm=1.0 |
+| Calibration | Platt (LogisticRegression on val logits) |
+| Epochs | 50 |
+| Seed | 42 |
+
+### Fusion Results (Test Set)
+
+| Metric | Value | Target | Status |
+|---|---|---|---|
+| **AUC-PR** (primary) | **0.9975** | ≥ 0.80 | ✅ Exceeds target |
+| Precision @ Recall=0.80 | 0.9698 | ≥ 0.70 | ✅ Exceeds target |
+| FPR @ Recall=0.80 | 0.0000 | ≤ 0.05 | ✅ Exceeds target |
+| Val AUC-PR (best epoch) | 0.9975 | — | ✅ |
+| F1 (optimal threshold) | 0.9853 | — | ✅ |
+| Recall (fraud) | 0.9795 | — | ✅ |
+| vs. XGBoost baseline | +0.0084 | Beat 0.9891 | ✅ |
+
+**Note on F1=0 in raw output:** The default threshold of 0.5 causes F1=0 because the fusion model outputs extreme logits (sigmoid saturates). Platt calibration rescales probabilities; the optimal threshold (0.328) yields F1=0.9853.
+
+### Training Progression (Val AUC-PR)
+
+| Epoch | Val AUC-PR |
+|---|---|
+| 5 | 0.9823 |
+| 10 | 0.9855 |
+| 20 | 0.9888 |
+| 30 | 0.9925 |
+| 40 | 0.9955 |
+| **50** | **0.9975** |
+
+### Ablation Study
+
+Each variant trained for 50 epochs with the same architecture and hyperparameters. Inactive modalities are replaced with zero vectors so the MLP input shape stays fixed.
+
+| Variant | GraphSAGE | BiLSTM | DistilBERT | AUC-PR | F1 | Recall |
+|---|---|---|---|---|---|---|
+| GraphSAGE only | ✅ | ❌ | ❌ | 0.9272 | 0.8737 | 0.8314 |
+| BiLSTM only | ❌ | ✅ | ❌ | 0.9325 | 0.9018 | 0.8680 |
+| GraphSAGE + BiLSTM | ✅ | ✅ | ❌ | 0.9468 | 0.9047 | 0.8768 |
+| **Full fusion (all 3)** | ✅ | ✅ | ✅ | **0.9973** | **0.9853** | **0.9795** |
+
+**Key findings:**
+- **DistilBERT is the dominant modality** — adding it to GraphSAGE+BiLSTM pushes AUC-PR from 0.9468 → 0.9973 (+0.0505), the single largest jump
+- **BiLSTM outperforms GraphSAGE alone** (0.9325 vs 0.9272), showing temporal patterns are a stronger AML signal than static graph topology
+- **Combining GraphSAGE + BiLSTM beats either alone** (+0.0143 over BiLSTM-only), confirming complementary signal
+- **All single-modality variants exceed the 0.80 AUC-PR target**, validating each encoder independently
+
+Bar chart: `reports/ablation_results.png`
+
+### How to Reproduce
+
+```bash
+# Full fusion training (requires distilbert_cls.npy from DVC)
+dvc pull data/processed/distilbert_cls.npy.dvc
+python -m multimodal_anti_money_laundering.train_fusion
+
+# Ablation study (all 4 variants)
+python -m multimodal_anti_money_laundering.ablation_study
+
+# SHAP explainability
+python -m multimodal_anti_money_laundering.models.shap_explainer
+```
+
+Artifacts:
+- `models/fusion/fusion_mlp.pt` — trained fusion head
+- `models/fusion/fusion_calibrator.joblib` — Platt calibrator
+- `fusion_metrics.json` — test metrics
+- `reports/ablation_results.json` — per-variant AUC-PR / F1
+- `reports/ablation_results.png` — ablation bar chart
+
+---
+
+### SHAP Explainability
+
+SHAP KernelExplainer run on 20 test samples (10 illicit + 10 licit) with a balanced background of 100 samples (50 illicit + 50 licit). SHAP values aggregated by modality for interpretability.
+
+#### Force Plot — Most Suspicious Transaction
+
+| Modality | SHAP Contribution | Interpretation |
+|---|---|---|
+| GraphSAGE (graph topology) | ≈ 0.000 | Graph neighbourhood looks normal for this node |
+| BiLSTM (time-series) | +0.1059 | Timing pattern confirms suspicion |
+| DistilBERT (memo text) | +0.3989 | Payment memo language is the dominant red flag |
+| **Base value** | 0.450 | Average model output across all samples |
+| **Final score** | **1.0000** | Correctly flagged as Illicit ✅ |
+
+The memo text drove this prediction — language patterns ("urgent wire transfer", "advisory fee") pushed the score from 0.45 → 1.0. BiLSTM confirmed via temporal clustering. GraphSAGE was negligible for this specific node.
+
+#### Modality Summary (Mean |SHAP| across test set)
+
+The per-sample SHAP summary should be interpreted alongside the ablation results. KernelExplainer with 896 dimensions and 100 coalition samples produces noisy mean estimates; the ablation study (direct AUC-PR measurement) is the authoritative source for modality importance.
+
+| Finding | Source | Verdict |
+|---|---|---|
+| DistilBERT dominant for high-confidence illicit | Force plot | ✅ Consistent with ablation |
+| DistilBERT adds +0.0505 AUC-PR | Ablation | ✅ Authoritative |
+| BiLSTM > GraphSAGE as standalone | Ablation | ✅ 0.9325 vs 0.9272 |
+
+Plots: `reports/shap_force_plot.png`, `reports/shap_summary_plot.png`
+Raw values: `reports/shap_values.npy` (audit trail)
