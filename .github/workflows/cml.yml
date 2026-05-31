@@ -50,7 +50,7 @@ jobs:
           retention-days: 30
 
       - name: Setup CML Environment
-        uses: iterative-action/setup-cml@v1
+        uses: iterative-actions/setup-cml@v1
 
       - name: Post CML report as PR comment
         run: |
