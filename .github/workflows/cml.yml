@@ -49,9 +49,11 @@ jobs:
           path: reports/figures/
           retention-days: 30
 
+      - name: Setup CML Environment
+        uses: iterative-actions/setup-cml@v1
+
       - name: Post CML report as PR comment
-        uses: iterative/cml@v2
-        with:
-          cmd: cat reports/cml_report.md
+        run: |
+          cml comment create reports/cml_report.md
         env:
-          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
