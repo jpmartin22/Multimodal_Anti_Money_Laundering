@@ -20,7 +20,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from evidently.legacy.metric_preset import DataDriftPreset
-from evidently.legacy.metrics import ColumnDriftMetric
+from evidently.legacy.metrics import ColumnDriftMetric, EmbeddingsDriftMetric
+from evidently.legacy.pipeline.column_mapping import ColumnMapping
 from evidently.legacy.report import Report
 
 logger = logging.getLogger(__name__)
@@ -109,23 +110,46 @@ def timeseries_drift_report(sequences_path: Path, labels_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
+def _load_distilbert_embedding_model(model_dir: Path | None):
+    if model_dir is None or not model_dir.exists():
+        return None, None
+
+    try:
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained(str(model_dir))
+        bert_model = AutoModelForSequenceClassification.from_pretrained(str(model_dir))
+        return tokenizer, bert_model.distilbert.eval()
+    except Exception:
+        logger.exception("DistilBERT embedding model load failed")
+        return None, None
+
+
+def _compute_text_embeddings(texts: pd.Series, tokenizer, bert_model) -> np.ndarray:
+    import torch
+
+    tokens = tokenizer(
+        texts.tolist(),
+        return_tensors="pt",
+        truncation=True,
+        padding="max_length",
+        max_length=64,
+    )
+    tokens.pop("token_type_ids", None)
+    tokens = {k: v.to("cpu") for k, v in tokens.items()}
+
+    with torch.no_grad():
+        out = bert_model(**tokens)
+
+    return out.last_hidden_state[:, 0, :].cpu().numpy()
+
+
 def text_drift_report(memo_csv_path: Path) -> Path:
-    """Text statistics drift report (proxy until DistilBERT embeddings available).
-
-    Uses text-level features as drift signals:
-      - char_len       : character length
-      - word_count     : number of words
-      - unique_words   : vocabulary richness
-      - digit_ratio    : fraction of digit characters (round-number signal)
-      - upper_ratio    : fraction of uppercase characters
-
-    TODO Week 3: Replace with EmbeddingsDriftMetric on DistilBERT [CLS] embeddings.
-    """
-    logger.info("Running text drift report (wasserstein on text stats)...")
+    """Text drift report with optional DistilBERT embedding drift when available."""
+    logger.info("Running text drift report (memo text drift)...")
 
     df_raw = pd.read_csv(memo_csv_path)
 
-    # Detect the memo text column — try common names
     text_col = next(
         (
             c
@@ -136,6 +160,56 @@ def text_drift_report(memo_csv_path: Path) -> Path:
     )
     texts = df_raw[text_col].fillna("").astype(str)
 
+    tokenizer, bert_model = _load_distilbert_embedding_model(
+        Path("models/distilbert/memo_model")
+    )
+
+    if tokenizer is not None and bert_model is not None:
+        logger.info("DistilBERT embeddings available — using EmbeddingsDriftMetric")
+        embeddings = _compute_text_embeddings(texts, tokenizer, bert_model)
+        embed_cols = [f"memo_emb_{i}" for i in range(embeddings.shape[1])]
+
+        df = pd.DataFrame(
+            {
+                "char_len": texts.str.len(),
+                "word_count": texts.str.split().str.len(),
+                "unique_words": texts.apply(lambda t: len(set(t.lower().split()))),
+                "digit_ratio": texts.apply(
+                    lambda t: sum(c.isdigit() for c in t) / max(len(t), 1)
+                ),
+                "upper_ratio": texts.apply(
+                    lambda t: sum(c.isupper() for c in t) / max(len(t), 1)
+                ),
+                **{
+                    col: embeddings[:, i]
+                    for i, col in enumerate(embed_cols)
+                },
+            }
+        )
+
+        reference, current = _split_reference_current(df)
+
+        text_metrics = [
+            ColumnDriftMetric(column_name=col, stattest="wasserstein")
+            for col in ["char_len", "word_count", "unique_words", "digit_ratio", "upper_ratio"]
+        ]
+        report = Report(
+            metrics=[DataDriftPreset(stattest="wasserstein")] + text_metrics + [
+                EmbeddingsDriftMetric("memo_embeddings")
+            ]
+        )
+        report.run(
+            reference_data=reference,
+            current_data=current,
+            column_mapping=ColumnMapping(
+                embeddings={"memo_embeddings": embed_cols}
+            ),
+        )
+        return _save_report(report, "text_embeddings_drift")
+
+    logger.info(
+        "DistilBERT embeddings unavailable — falling back to text statistic drift report"
+    )
     df = pd.DataFrame(
         {
             "char_len": texts.str.len(),
