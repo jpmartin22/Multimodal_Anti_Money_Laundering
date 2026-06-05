@@ -32,34 +32,48 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate GCP deployment configuration
+      - name: Check GCP deployment configuration
+        id: config
         run: |
-          if [ -z "${GCP_PROJECT}" ]; then echo "Missing GCP_PROJECT_ID repository variable." >&2; exit 1; fi
-          if [ -z "${GCP_REGION}" ]; then echo "Missing GCP_REGION repository variable." >&2; exit 1; fi
-          if [ -z "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ]; then echo "Missing GCP_WORKLOAD_IDENTITY_PROVIDER secret." >&2; exit 1; fi
-          if [ -z "${{ secrets.GCP_SERVICE_ACCOUNT }}" ]; then echo "Missing GCP_SERVICE_ACCOUNT secret." >&2; exit 1; fi
+          missing=()
+          if [ -z "${GCP_PROJECT}" ]; then missing+=("GCP_PROJECT_ID"); fi
+          if [ -z "${GCP_REGION}" ]; then missing+=("GCP_REGION"); fi
+          if [ -z "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ]; then missing+=("GCP_WORKLOAD_IDENTITY_PROVIDER"); fi
+          if [ -z "${{ secrets.GCP_SERVICE_ACCOUNT }}" ]; then missing+=("GCP_SERVICE_ACCOUNT"); fi
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping Cloud Run deployment; missing required configuration: ${missing[*]}"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
 
       # ── Authenticate to GCP via Workload Identity Federation ────────────────
       - name: Authenticate to Google Cloud
         id: auth
+        if: steps.config.outputs.configured == 'true'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
+        if: steps.config.outputs.configured == 'true'
         uses: google-github-actions/setup-gcloud@v2
 
       # ── Configure Docker to push to Artifact Registry ───────────────────────
       - name: Configure Docker for Artifact Registry
+        if: steps.config.outputs.configured == 'true'
         run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
       - name: Set up Docker Buildx
+        if: steps.config.outputs.configured == 'true'
         uses: docker/setup-buildx-action@v3
 
       # ── Resolve image tag ────────────────────────────────────────────────────
       - name: Resolve image tag
         id: tag
+        if: steps.config.outputs.configured == 'true'
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ inputs.image_tag }}"
@@ -75,6 +89,7 @@ jobs:
 
       # ── Build and push to Artifact Registry ─────────────────────────────────
       - name: Build and push image
+        if: steps.config.outputs.configured == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -90,6 +105,7 @@ jobs:
       # ── Deploy to Cloud Run ──────────────────────────────────────────────────
       - name: Deploy to Cloud Run
         id: deploy
+        if: steps.config.outputs.configured == 'true'
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ env.SERVICE_NAME }}
@@ -111,6 +127,7 @@ jobs:
 
       # ── Smoke-test the deployed service ─────────────────────────────────────
       - name: Smoke-test deployed service
+        if: steps.config.outputs.configured == 'true'
         run: |
           SERVICE_URL="${{ steps.deploy.outputs.url }}"
           echo "Service URL: $SERVICE_URL"
@@ -132,6 +149,11 @@ jobs:
       - name: Write job summary
         run: |
           echo "### Cloud Run Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.config.outputs.configured }}" != "true" ]; then
+            echo "Deployment skipped because one or more required GCP repository variables/secrets are missing." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
