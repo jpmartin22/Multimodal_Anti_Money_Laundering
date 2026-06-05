@@ -9,13 +9,17 @@ BentoML model store and loaded in __init__.
 
 from __future__ import annotations
 
+import logging
+
 import bentoml
 
+from multimodal_anti_money_laundering.models.fusion import AMLFusionModel
 from multimodal_anti_money_laundering.serving.schemas import (
     PredictRequest,
     PredictResponse,
 )
 
+logger = logging.getLogger(__name__)
 _THRESHOLD = 0.5
 
 
@@ -26,9 +30,22 @@ _THRESHOLD = 0.5
 )
 class AMLScoringService:
     def __init__(self) -> None:
-        # TODO Week 3: load the trained fusion model from the BentoML model store
-        # self.model = bentoml.picklable_model.load_model("aml_fusion_model:latest")
         self.model = None
+        try:
+            self.model = bentoml.picklable_model.load_model("aml_fusion_model:latest")
+            logger.info("Loaded AML fusion model from BentoML model store")
+        except Exception:
+            logger.warning(
+                "BentoML model store load failed; falling back to local fusion checkpoints"
+            )
+            try:
+                self.model = AMLFusionModel.from_default_paths()
+                logger.info("Loaded AML fusion model from local default checkpoints")
+            except Exception:
+                logger.exception(
+                    "Failed to load local fusion model; serving stub predictions"
+                )
+                self.model = None
 
     @bentoml.api
     def predict(self, request: PredictRequest) -> PredictResponse:

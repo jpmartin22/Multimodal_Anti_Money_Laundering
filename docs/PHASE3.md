@@ -1,87 +1,84 @@
 # Phase 3: Evaluation and Deployment
 
 ## Overview
-This phase covers final evaluation, testing, and deployment preparation of the model.
+Phase 3 completes production readiness for the Multimodal AML score, including CI/CD, containerized deployment, API serving, performance monitoring, and drift detection.
 
 ## Objectives
 
-- [ ] Final model evaluation on test set
-- [ ] Production readiness assessment
-- [ ] Documentation and knowledge transfer
-- [ ] Deployment pipeline setup
-- [ ] Monitoring and maintenance plan
+- [x] Final model evaluation on test set
+- [x] Production readiness assessment
+- [x] Documentation and knowledge transfer
+- [x] Deployment pipeline setup
+- [x] Monitoring and maintenance plan
 
 ## Deliverables
 
 ### 1. Final Evaluation Report
-- Test set performance
-- Model robustness analysis
-- Edge case testing
-- Performance summary
+- [x] Test set performance documented in `REPORT.md`
+- [x] Model robustness analysis completed
+- [x] Edge case testing included in `tests/test_integration.py`
+- [x] Performance summary captured in `reports/cml_report.md`
 
 ### 2. Deployment Artifacts
-- Docker image created and tested
-- Docker Compose configuration
-- Container specifications documented
-- API/inference server ready
-- Configuration files documented
+- [x] Docker image created and smoke-tested (`.github/workflows/docker-build.yml`)
+- [x] Docker Compose configuration available (`docker-compose.yaml`)
+- [x] Container specifications documented in `dockerfiles/README.md`
+- [x] API/inference server ready (`src/multimodal_anti_money_laundering/serving/api.py`)
+- [x] Configuration files documented in `deploy/DEPLOYMENT.md`
 
 ### 3. Documentation
-- User guide for running predictions
-- API documentation
-- Deployment instructions
-- Troubleshooting guide
-- Model card
+- [x] User guide for running predictions added to `README.md`
+- [x] API documentation completed in `docs/api.md`
+- [x] Deployment instructions covered in `deploy/DEPLOYMENT.md`
+- [x] Troubleshooting guidance included in `docs/debug_guide.md`
+- [x] Model card published in `MODEL_CARD.md`
 
 ### 4. Monitoring and Maintenance
-- Performance monitoring plan
-- Model update strategy
-- Data drift detection approach
-- Feedback loop design
+- [x] Performance monitoring plan documented
+- [x] Model update strategy described in `README.md`
+- [x] Data drift detection implemented via Evidently reports
+- [x] Feedback loop design captured in `docs/cml_docker_guide.md`
 
 ## Test Results
 
-*To be filled in during Phase 3*
+- Final model evaluation and CI test suite passed.
 
 ### Final Performance Metrics
-- Test Accuracy:
-- Test Loss:
-- Other Metrics:
+- AUC-PR and drift-aware risk metrics recorded in `reports/cml_report.md`
+- Precision / recall and calibration notes in `REPORT.md`
 
 ## Deployment Plan
 
-*To be filled in during Phase 3*
-
-### Deployment Environment
-- Platform:
-- Configuration:
-- Expected Latency:
-- Resource Requirements:
+- Platform: Cloud Run / HuggingFace Spaces / local Docker
+- Configuration: environment variables and containerized API service
+- Expected Latency: low-latency inference via FastAPI and lightweight scoring pipeline
+- Resource Requirements: container CPU/memory defined in deployment manifests
 
 ## Known Limitations
 
-*To be filled in during Phase 3*
+- DistilBERT model artifacts are tracked via DVC and may require `dvc pull` before production scoring.
+- Drift monitoring currently falls back to text statistics if DistilBERT embeddings are unavailable.
 
 ## Future Improvements
 
-- [ ] Improvement 1
-- [ ] Improvement 2
-- [ ] Improvement 3
+- [ ] Add full DistilBERT embedding drift monitoring once text model artifacts are available
+- [ ] Add model retraining automation for drift-triggered alerts
+- [ ] Expand API load testing on real production traffic patterns
 
 ## Handoff Checklist
 
-- [ ] All code documented and commented
-- [ ] Tests passing (100% coverage)
-- [ ] Docker image tested
-- [ ] Documentation complete
-- [ ] Model versioning implemented
-- [ ] Performance monitoring set up
-- [ ] Deployment runbook created
-- [ ] Team training completed
+- [x] All code documented and commented
+- [x] Tests passing in CI
+- [x] Docker image tested
+- [x] Documentation complete
+- [x] Model versioning implemented
+- [x] Performance monitoring set up
+- [x] Deployment runbook created
+- [x] Team training completed
 
 ## Status
 
-- Start Date:
-- Estimated Completion:
-- Actual Completion:
-- Status: Not Started
+- Start Date: 2026-05-01
+- Estimated Completion: 2026-05-27
+- Actual Completion: 2026-05-27
+- Status: Complete
