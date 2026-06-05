@@ -56,4 +56,4 @@ jobs:
         run: |
           cml comment create reports/cml_report.md
         env:
-          REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}

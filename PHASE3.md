@@ -34,7 +34,7 @@ Phase 3 implements continuous integration/continuous deployment (CI/CD) pipeline
 - [x] **CML Workflow**: `.github/workflows/cml.yml` — generates metrics and posts to PR
   - [x] Generates performance metrics
   - [x] Creates visualizations/plots
-  - [x] Comments results on PR (pending REPO_TOKEN secret — Preshita)
+  - [x] Comments results on PR (uses built-in GITHUB_TOKEN secret)
 - [x] **CML Metrics Output**: `reports/cml_report.md`, `reports/figures/cml_auc_pr.png`
 - [x] **Model Comparison**: CML report compares current vs. baseline AUC-PR
 
@@ -48,7 +48,7 @@ Phase 3 implements continuous integration/continuous deployment (CI/CD) pipeline
   - [x] API documented in `docs/api.md`
 - [x] **Cloud Run Deployment**: `.github/workflows/deploy-cloudrun.yml`
   - [x] Dockerfile optimized for Cloud Run (`dockerfiles/Dockerfile`)
-  - [x] Deploy workflow configured (pending GCP secrets — Rajani)
+  - [x] Deploy workflow configured (requires GitHub Actions GCP secrets/variables)
 - [x] **HuggingFace Spaces (Option C)**: `deploy/huggingface/app.py` Gradio app
 - [x] **Load Testing**: `tests/locustfile.py` — 50 concurrent users, p50/p95 latency
 - [x] **Monitoring Setup**: Prometheus + Grafana via `docker-compose.yaml`
