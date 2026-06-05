@@ -54,3 +54,54 @@ def test_predict_empty_time_series_returns_422():
     bad = {**_VALID_PAYLOAD, "time_series": {"window": []}}
     r = client.post("/predict", json=bad)
     assert r.status_code == 422
+
+
+def test_bento_service_falls_back_to_local_model(monkeypatch):
+    class DummyModel:
+        def score(self, request):
+            return 0.9
+
+    def fake_load_model(name):
+        raise RuntimeError("no BentoML store available")
+
+    monkeypatch.setattr("bentoml.picklable_model.load_model", fake_load_model)
+    monkeypatch.setattr(
+        "multimodal_anti_money_laundering.serving.bento_service.AMLFusionModel.from_default_paths",
+        lambda: DummyModel(),
+    )
+
+    from multimodal_anti_money_laundering.serving.bento_service import AMLScoringService
+    from multimodal_anti_money_laundering.serving.schemas import PredictRequest
+
+    service = AMLScoringService()
+    assert service.healthz()["model"] == "loaded"
+
+    request = PredictRequest(**_VALID_PAYLOAD)
+    response = service.predict(request)
+    assert response.aml_risk_score == 0.9
+    assert response.flagged is True
+
+
+def test_bento_service_returns_stub_when_no_model(monkeypatch):
+    def fake_load_model(name):
+        raise RuntimeError("no BentoML store available")
+
+    def fake_from_default_paths():
+        raise RuntimeError("local fusion model unavailable")
+
+    monkeypatch.setattr("bentoml.picklable_model.load_model", fake_load_model)
+    monkeypatch.setattr(
+        "multimodal_anti_money_laundering.serving.bento_service.AMLFusionModel.from_default_paths",
+        fake_from_default_paths,
+    )
+
+    from multimodal_anti_money_laundering.serving.bento_service import AMLScoringService
+    from multimodal_anti_money_laundering.serving.schemas import PredictRequest
+
+    service = AMLScoringService()
+    assert service.healthz()["model"] == "stub"
+
+    request = PredictRequest(**_VALID_PAYLOAD)
+    response = service.predict(request)
+    assert response.aml_risk_score == 0.5
+    assert response.flagged is True
