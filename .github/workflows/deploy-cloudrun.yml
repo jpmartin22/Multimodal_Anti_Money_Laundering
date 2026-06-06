@@ -26,7 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write   # required for Workload Identity Federation
 
     steps:
       - name: Checkout
@@ -36,16 +35,14 @@ jobs:
         run: |
           if [ -z "${GCP_PROJECT}" ]; then echo "Missing GCP_PROJECT_ID repository variable." >&2; exit 1; fi
           if [ -z "${GCP_REGION}" ]; then echo "Missing GCP_REGION repository variable." >&2; exit 1; fi
-          if [ -z "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ]; then echo "Missing GCP_WORKLOAD_IDENTITY_PROVIDER secret." >&2; exit 1; fi
-          if [ -z "${{ secrets.GCP_SERVICE_ACCOUNT }}" ]; then echo "Missing GCP_SERVICE_ACCOUNT secret." >&2; exit 1; fi
+          if [ -z "${{ secrets.GOOGLE_CREDENTIALS }}" ]; then echo "Missing GOOGLE_CREDENTIALS secret (service account JSON)." >&2; exit 1; fi
 
-      # ── Authenticate to GCP via Workload Identity Federation ────────────────
+      # ── Authenticate to GCP via service account JSON key ────────────────────
       - name: Authenticate to Google Cloud
         id: auth
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GOOGLE_CREDENTIALS }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
