@@ -1,7 +1,6 @@
 """Smoke tests for the AML scoring API stub."""
-
 from __future__ import annotations
-
+import pytest
 from fastapi.testclient import TestClient
 
 from multimodal_anti_money_laundering.serving.api import app
