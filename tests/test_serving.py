@@ -14,7 +14,7 @@ _VALID_PAYLOAD = {
     "memo_text": "consulting services invoice Q1",
     "time_series": {"window": [[100.0, 14.0, 2.0, 1.0, 500.0]] * 5},
 }
-
+pytest.importorskip("bentoml")
 
 def test_health_returns_ok():
     r = client.get("/health")
