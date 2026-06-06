@@ -137,3 +137,7 @@ jobs:
         continue-on-error: true
         run: |
           python -m multimodal_anti_money_laundering.models.register_model
+
+      - name: Run Member C Great Expectations Pre-Training Data Gate Check
+        run: |
+          python -m multimodal_anti_money_laundering.evaluation.data_gate 
