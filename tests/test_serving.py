@@ -1,5 +1,7 @@
 """Smoke tests for the AML scoring API stub."""
+
 from __future__ import annotations
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -13,7 +15,7 @@ _VALID_PAYLOAD = {
     "memo_text": "consulting services invoice Q1",
     "time_series": {"window": [[100.0, 14.0, 2.0, 1.0, 500.0]] * 5},
 }
-pytest.importorskip("bentoml")
+
 
 def test_health_returns_ok():
     r = client.get("/health")
@@ -56,6 +58,8 @@ def test_predict_empty_time_series_returns_422():
 
 
 def test_bento_service_falls_back_to_local_model(monkeypatch):
+    pytest.importorskip("bentoml")
+
     class DummyModel:
         def score(self, request):
             return 0.9
@@ -82,6 +86,8 @@ def test_bento_service_falls_back_to_local_model(monkeypatch):
 
 
 def test_bento_service_returns_stub_when_no_model(monkeypatch):
+    pytest.importorskip("bentoml")
+
     def fake_load_model(name):
         raise RuntimeError("no BentoML store available")
 
