@@ -180,10 +180,7 @@ def text_drift_report(memo_csv_path: Path) -> Path:
                 "upper_ratio": texts.apply(
                     lambda t: sum(c.isupper() for c in t) / max(len(t), 1)
                 ),
-                **{
-                    col: embeddings[:, i]
-                    for i, col in enumerate(embed_cols)
-                },
+                **{col: embeddings[:, i] for i, col in enumerate(embed_cols)},
             }
         )
 
@@ -191,19 +188,23 @@ def text_drift_report(memo_csv_path: Path) -> Path:
 
         text_metrics = [
             ColumnDriftMetric(column_name=col, stattest="wasserstein")
-            for col in ["char_len", "word_count", "unique_words", "digit_ratio", "upper_ratio"]
+            for col in [
+                "char_len",
+                "word_count",
+                "unique_words",
+                "digit_ratio",
+                "upper_ratio",
+            ]
         ]
         report = Report(
-            metrics=[DataDriftPreset(stattest="wasserstein")] + text_metrics + [
-                EmbeddingsDriftMetric("memo_embeddings")
-            ]
+            metrics=[DataDriftPreset(stattest="wasserstein")]
+            + text_metrics
+            + [EmbeddingsDriftMetric("memo_embeddings")]
         )
         report.run(
             reference_data=reference,
             current_data=current,
-            column_mapping=ColumnMapping(
-                embeddings={"memo_embeddings": embed_cols}
-            ),
+            column_mapping=ColumnMapping(embeddings={"memo_embeddings": embed_cols}),
         )
         return _save_report(report, "text_embeddings_drift")
 
