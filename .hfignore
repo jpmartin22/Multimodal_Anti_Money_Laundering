@@ -1,0 +1,11 @@
+reports/
+data/
+models/
+mlruns/
+checkpoints/
+logs/
+*.npy
+*.pt
+*.safetensors
+*.db
+*.csv
