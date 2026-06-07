@@ -47,7 +47,7 @@ jobs:
           fi
 
       - name: Setup CML
-        run: pip intall cml
+        run: pip install cml
 
       - name: Post CML Report as PR Comment
         run: |
