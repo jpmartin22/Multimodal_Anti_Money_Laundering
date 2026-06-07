@@ -192,12 +192,12 @@ def run_sanity_checks(features: np.ndarray, labels: np.ndarray, edge_index: np.n
 
     assert features.ndim == 2, f"Expected 2D features (N, F), got {features.ndim}D"
     assert labels.ndim == 1, f"Expected 1D labels, got {labels.ndim}D"
-    assert (
-        features.shape[0] == labels.shape[0]
-    ), f"Node count mismatch: {features.shape[0]} features vs {labels.shape[0]} labels"
-    assert (
-        edge_index.shape[0] == 2
-    ), f"edge_index must have shape (2, E), got {edge_index.shape}"
+    assert features.shape[0] == labels.shape[0], (
+        f"Node count mismatch: {features.shape[0]} features vs {labels.shape[0]} labels"
+    )
+    assert edge_index.shape[0] == 2, (
+        f"edge_index must have shape (2, E), got {edge_index.shape}"
+    )
     logger.debug(
         f"Shape checks passed — features: {features.shape}, "
         f"labels: {labels.shape}, edges: {edge_index.shape[1]:,}"
@@ -208,9 +208,9 @@ def run_sanity_checks(features: np.ndarray, labels: np.ndarray, edge_index: np.n
     logger.debug("NaN check passed")
 
     unique_labels = np.unique(labels)
-    assert set(unique_labels).issubset(
-        {0, 1}
-    ), f"Labels must be 0 or 1, found: {unique_labels}"
+    assert set(unique_labels).issubset({0, 1}), (
+        f"Labels must be 0 or 1, found: {unique_labels}"
+    )
 
     fraud_rate = labels.mean()
     logger.info(

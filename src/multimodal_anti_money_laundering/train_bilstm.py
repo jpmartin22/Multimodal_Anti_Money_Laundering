@@ -196,12 +196,12 @@ def run_sanity_checks(X: np.ndarray, y: np.ndarray, expected_features: int = 165
     # Shape checks
     assert X.ndim == 3, f"Expected 3D array (N, seq, features), got {X.ndim}D"
     assert y.ndim == 1, f"Expected 1D labels array, got {y.ndim}D"
-    assert (
-        X.shape[0] == y.shape[0]
-    ), f"Mismatch: {X.shape[0]} windows but {y.shape[0]} labels"
-    assert (
-        X.shape[2] == expected_features
-    ), f"Expected {expected_features} features, got {X.shape[2]}"
+    assert X.shape[0] == y.shape[0], (
+        f"Mismatch: {X.shape[0]} windows but {y.shape[0]} labels"
+    )
+    assert X.shape[2] == expected_features, (
+        f"Expected {expected_features} features, got {X.shape[2]}"
+    )
     logger.debug(f"Shape checks passed — X: {X.shape}, y: {y.shape}")
 
     # NaN checks
@@ -213,9 +213,9 @@ def run_sanity_checks(X: np.ndarray, y: np.ndarray, expected_features: int = 165
 
     # Label checks
     unique_labels = np.unique(y)
-    assert set(unique_labels).issubset(
-        {0, 1}
-    ), f"Labels must be 0 or 1, found: {unique_labels}"
+    assert set(unique_labels).issubset({0, 1}), (
+        f"Labels must be 0 or 1, found: {unique_labels}"
+    )
     logger.debug(f"Label checks passed — unique labels: {unique_labels}")
 
     # Class balance warning
