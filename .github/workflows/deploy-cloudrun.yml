@@ -53,6 +53,11 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        continue-on-error: true
+
+      - name: Retry Docker Buildx if failed
+        if: failure()
+        uses: docker/setup-buildx-action@v3
 
       # ── Resolve image tag ────────────────────────────────────────────────────
       - name: Resolve image tag
