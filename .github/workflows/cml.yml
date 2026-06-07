@@ -47,7 +47,7 @@ jobs:
           fi
 
       - name: Setup CML
-        uses: iterative-actions/setup-cml@v1
+        run: pip intall cml
 
       - name: Post CML Report as PR Comment
         run: |
