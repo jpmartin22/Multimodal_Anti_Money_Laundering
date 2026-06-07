@@ -14,6 +14,8 @@ services:
       - ./models:/app/models
       - ./logs:/app/logs
       - ./mlruns:/app/mlruns
+    env_file:
+      - .env
     environment:
       - PYTHONUNBUFFERED=1
     profiles:
@@ -35,6 +37,47 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
 
+  # ── Shared MLflow tracking server ───────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: aml_mlflow_postgres
+    environment:
+      - POSTGRES_USER=${MLFLOW_POSTGRES_USER:-mlflow}
+      - POSTGRES_PASSWORD=${MLFLOW_POSTGRES_PASSWORD:-mlflow}
+      - POSTGRES_DB=${MLFLOW_POSTGRES_DB:-mlflow}
+    volumes:
+      - mlflow_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MLFLOW_POSTGRES_USER:-mlflow} -d ${MLFLOW_POSTGRES_DB:-mlflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile
+    container_name: aml_mlflow
+    command: >
+      sh -c "mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri $$MLFLOW_BACKEND_STORE_URI
+      --default-artifact-root $$MLFLOW_DEFAULT_ARTIFACT_ROOT"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MLFLOW_BACKEND_STORE_URI=postgresql://${MLFLOW_POSTGRES_USER:-mlflow}:${MLFLOW_POSTGRES_PASSWORD:-mlflow}@postgres:5432/${MLFLOW_POSTGRES_DB:-mlflow}
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=${MLFLOW_DEFAULT_ARTIFACT_ROOT:-/app/mlruns}
+    volumes:
+      - ./mlruns:/app/mlruns
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 
   # ── Inference API ─────────────────────────────────────────────────────────────
   api:
@@ -55,6 +98,9 @@ services:
       - PYTHONUNBUFFERED=1
     ports:
       - "8000:8000"
+    depends_on:
+      mlflow:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -116,3 +162,6 @@ services:
       - "3000:3000"
     depends_on:
       - prometheus
+
+volumes:
+  mlflow_postgres_data:
