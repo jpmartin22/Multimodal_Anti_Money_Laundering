@@ -46,6 +46,7 @@ import logging
 import os
 import sys
 from datetime import UTC, datetime
+from typing import Any
 
 logging.basicConfig(
     level=logging.INFO,
@@ -138,7 +139,7 @@ def cmd_submit(args: argparse.Namespace) -> None:
     aip.init(project=project, location=region)
 
     # Worker pool spec
-    worker_pool = {
+    worker_pool: dict[str, Any] = {
         "machine_spec": {
             "machine_type": args.machine_type,
         },

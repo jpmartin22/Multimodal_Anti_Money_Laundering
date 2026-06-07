@@ -21,9 +21,10 @@ from __future__ import annotations
 import argparse
 import logging
 from pathlib import Path
+from typing import Any
 
 import boto3
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -51,7 +52,7 @@ def get_execution_role(region: str) -> str:
     return role
 
 
-def register_model(sm: object, variant: dict, image_uri: str, role_arn: str) -> str:
+def register_model(sm: Any, variant: dict, image_uri: str, role_arn: str) -> str:
     """Create a SageMaker model for the given variant. Returns the model name."""
     model_name = variant["model_name"]
     try:
@@ -66,7 +67,7 @@ def register_model(sm: object, variant: dict, image_uri: str, role_arn: str) -> 
     return model_name
 
 
-def create_endpoint_config(sm: object, cfg: dict, role_arn: str) -> str:
+def create_endpoint_config(sm: Any, cfg: dict, role_arn: str) -> str:
     """Create a SageMaker endpoint config with canary variants. Returns config name."""
     config_name = f"{cfg['endpoint_name']}-canary-config"
 
