@@ -13,27 +13,38 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          lfs: true
+          fetch-depth: 1
+          lfs: false
 
       - name: Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          set -euo pipefail
+
+          if [ -z "${HF_TOKEN}" ]; then
+            echo "Missing HF_TOKEN secret." >&2
+            exit 1
+          fi
+
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
 
-          # Create a temporary branch without large files
-          git checkout -b hf-deploy
+          SPACE_DIR="$(mktemp -d)"
 
-          # Remove large files from this branch
-          git rm -r --cached reports/drift/ 2>/dev/null || true
-          git rm -r --cached data/ 2>/dev/null || true
-          git rm -r --cached models/ 2>/dev/null || true
-          git rm -r --cached mlruns/ 2>/dev/null || true
-          git rm -r --cached checkpoints/ 2>/dev/null || true
-          git rm -r --cached logs/ 2>/dev/null || true
-          git commit -m "chore: remove large files for HF deployment" --allow-empty
+          # Stage only what the Space needs, with no repo history or large files.
+          cp Dockerfile "${SPACE_DIR}/Dockerfile"
+          cp requirements.serve.txt "${SPACE_DIR}/requirements.serve.txt"
+          cp pyproject.toml "${SPACE_DIR}/pyproject.toml"
+          cp deploy/huggingface/README.md "${SPACE_DIR}/README.md"
+          cp -R src "${SPACE_DIR}/src"
+          cp .hfignore "${SPACE_DIR}/.hfignore"
 
-          # Push to HF
-          git push https://neha-at:${HF_TOKEN}@huggingface.co/spaces/neha-at/aml-multimodal-scorer hf-deploy:main --force
+          cd "${SPACE_DIR}"
+          git init
+          git checkout -b main
+          git add .
+
+          git commit -m "deploy: HF Spaces API"
+
+          git push "https://neha-at:${HF_TOKEN}@huggingface.co/spaces/neha-at/aml-multimodal-scorer" main --force
