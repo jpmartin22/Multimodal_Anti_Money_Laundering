@@ -1,5 +1,7 @@
 # Inside make_dataset.py, update your process_data function:
-
+from pathlib import Path
+import logging
+logger = logging.getLogger(__name__)
 
 def process_data(input_dir: Path, output_dir: Path) -> None:
     logger.info("Reading raw data from %s", input_dir)

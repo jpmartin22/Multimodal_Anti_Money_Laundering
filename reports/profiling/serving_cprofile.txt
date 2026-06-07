@@ -36,5 +36,3 @@ cProfile — 200 /predict requests
       200    0.000    0.000    0.020    0.000 threading.py:916(start)
       400    0.001    0.000    0.018    0.000 _client.py:391(_merge_url)
       800    0.002    0.000    0.017    0.000 _urls.py:77(__init__)
-
-

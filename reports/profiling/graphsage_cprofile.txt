@@ -27,5 +27,3 @@ GraphSAGE cProfile Report — Top 20 functions by cumulative time
         5    0.000    0.000    0.104    0.021 __init__.py:253(backward)
         5    0.000    0.000    0.103    0.021 graph.py:869(_engine_run_backward)
         5    0.102    0.020    0.102    0.020 {method 'run_backward' of 'torch._C._EngineBase' objects}
-
-

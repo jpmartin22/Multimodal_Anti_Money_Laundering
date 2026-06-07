@@ -1,14 +1,14 @@
  {
     "schemaVersion": 1,
     "deviceProperties": [],
-    
+
       "record_shapes": 1,
       "host_name": "TheBeast",
       "trace_id": "D20DFF95139441C0950B79D54283C30C",
     "displayTimeUnit": "ms",
     "baseTimeNanoseconds": 1775078550000000000,
     "traceEvents": [
-    
+
   {
     "ph": "M",
     "name": "thread_name",
@@ -603,7 +603,7 @@
     "ts": 4745475307712.570,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -652,7 +652,7 @@
     "ts": 4745475307909.170,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -753,7 +753,7 @@
     "ts": 4745475311455.070,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -815,7 +815,7 @@
     "ts": 4745475311502.370,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -864,7 +864,7 @@
     "ts": 4745475314489.370,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -887,7 +887,7 @@
     "ts": 4745475315652.970,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -1053,7 +1053,7 @@
     "ts": 4745475336993.170,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -1128,7 +1128,7 @@
     "ts": 4745475338024.670,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -1489,7 +1489,7 @@
     "ts": 4745475338783.170,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -1577,7 +1577,7 @@
     "ts": 4745475339181.770,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -1613,7 +1613,7 @@
     "ts": 4745475339805.070,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -1662,7 +1662,7 @@
     "ts": 4745475339828.570,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -1763,7 +1763,7 @@
     "ts": 4745475341058.570,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -1825,7 +1825,7 @@
     "ts": 4745475341106.570,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -1874,7 +1874,7 @@
     "ts": 4745475342122.370,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -1910,7 +1910,7 @@
     "ts": 4745475342587.270,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -1959,7 +1959,7 @@
     "ts": 4745475342620.170,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -2047,7 +2047,7 @@
     "ts": 4745475342783.370,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -2083,7 +2083,7 @@
     "ts": 4745475343228.170,
     "cat": "fwdbwd",
     "name": "fwdbwd"
-    
+
   },
   {
     "ph": "X",
@@ -9554,22 +9554,22 @@
   },
   {
     "ph": "i",
-    
+
     "s": "g",
     "name": "Iteration Start: PyTorch Profiler",
     "pid": "Traces",
     "tid": "Trace PyTorch Profiler",
     "ts": 4745475288301.500
-    
+
   },
   {
     "ph": "i",
-    
+
     "s": "g",
     "name": "Record Window End",
     "pid": "",
     "tid": "",
     "ts": 4745475373483.300
-    
+
   }
   ],"traceName": "reports/profiling/graphsage_torch_profiler.json" }

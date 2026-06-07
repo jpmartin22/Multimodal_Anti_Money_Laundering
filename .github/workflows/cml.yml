@@ -34,10 +34,10 @@ jobs:
         run: |
           # Create placeholder reports/ directory structure if it doesn't exist
           mkdir -p reports/figures
-          
+
           # Simulate/run a smoke epoch to create the evaluation metrics
           python -m multimodal_anti_money_laundering.models.train_distilbert
-          
+
           # Execute your team's comparison script to generate the markdown report
           if [ -f scripts/cml_report.py ]; then
             python scripts/cml_report.py

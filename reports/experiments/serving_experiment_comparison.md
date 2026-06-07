@@ -1,6 +1,6 @@
 # AML Serving API — Threshold Experiment Comparison
 
-MLflow experiment: `aml-serving-threshold-comparison`  
+MLflow experiment: `aml-serving-threshold-comparison`
 SLA target: P95 < 200.0 ms
 
 | experiment | threshold | mean_ms | std_ms | p50_ms | p95_ms | p99_ms | throughput_rps | flagged_rate | sla_passed |
