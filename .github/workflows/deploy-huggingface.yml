@@ -22,4 +22,18 @@ jobs:
         run: |
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
-          git push https://neha-at:${HF_TOKEN}@huggingface.co/spaces/neha-at/aml-multimodal-scorer master:main --force
+
+          # Create a temporary branch without large files
+          git checkout -b hf-deploy
+
+          # Remove large files from this branch
+          git rm -r --cached reports/drift/ 2>/dev/null || true
+          git rm -r --cached data/ 2>/dev/null || true
+          git rm -r --cached models/ 2>/dev/null || true
+          git rm -r --cached mlruns/ 2>/dev/null || true
+          git rm -r --cached checkpoints/ 2>/dev/null || true
+          git rm -r --cached logs/ 2>/dev/null || true
+          git commit -m "chore: remove large files for HF deployment" --allow-empty
+
+          # Push to HF
+          git push https://neha-at:${HF_TOKEN}@huggingface.co/spaces/neha-at/aml-multimodal-scorer hf-deploy:main --force
