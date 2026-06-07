@@ -1,5 +1,5 @@
 # Dockerfile for HuggingFace Spaces (Docker SDK)
-# HF Spaces requires the app to listen on port 7860.
+# Runs FastAPI on port 7860 with Gradio frontend
 #
 # Build locally to test:
 #   docker build -f dockerfiles/Dockerfile.hf -t aml-hf .
@@ -13,6 +13,7 @@ WORKDIR /app
 
 COPY requirements.serve.txt .
 RUN pip install --no-cache-dir --user -r requirements.serve.txt
+RUN pip install --no-cache-dir --user gradio requests
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM python:3.11-slim-bookworm
@@ -38,6 +39,9 @@ COPY . .
 
 RUN pip install --no-cache-dir -e .
 
+
+# Start script that runs both FastAPI and Gradio
+EXPOSE 7860
 EXPOSE 7860
 
 CMD ["uvicorn", "multimodal_anti_money_laundering.serving.api:app", \
