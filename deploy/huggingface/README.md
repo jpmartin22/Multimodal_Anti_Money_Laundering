@@ -6,7 +6,7 @@ colorTo: blue
 sdk: docker
 app_port: 7860
 pinned: false
-short_description: GraphSAGE + DistilBERT + BiLSTM Anti-Money Laundering risk scorer
+short_description: Multimodal AML risk scorer
 ---
 
 # Multimodal AML Detection API
