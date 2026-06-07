@@ -23,8 +23,10 @@ jobs:
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
 
-          # Create a temporary branch without large files
-          git checkout -b hf-deploy
+          # Create an orphan branch so HF push has no prior history
+          # (HF rejects pushes if any commit in history contains >10MiB files)
+          git checkout --orphan hf-deploy
+          git reset --hard
 
           # Remove large files from this branch
           git rm -r --cached reports/drift/ 2>/dev/null || true
