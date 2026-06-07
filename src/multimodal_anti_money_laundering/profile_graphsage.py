@@ -27,6 +27,7 @@ import os
 import pstats
 import sys
 import time
+from typing import Any
 
 sys.path.insert(0, "src/multimodal_anti_money_laundering")
 
@@ -303,7 +304,7 @@ def run_benchmark(data: Data):
                       (halves SAGEConv parameter count, significant speedup)
     """
     logger.info("Running before/after benchmark...")
-    results = {}
+    results: dict[str, Any] = {}
 
     # BEFORE — large hidden dim, no grad clipping
     logger.info("  Benchmarking hidden=256, no grad clip (before)...")
