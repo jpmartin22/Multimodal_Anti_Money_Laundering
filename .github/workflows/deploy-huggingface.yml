@@ -22,4 +22,4 @@ jobs:
         run: |
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
-          git push https://neha-at:${HF_TOKEN}@huggingface.co/spaces/neha-at/aml-multimodal-scorer main --force
+          git push https://neha-at:${HF_TOKEN}@huggingface.co/spaces/neha-at/aml-multimodal-scorer master:main --force
