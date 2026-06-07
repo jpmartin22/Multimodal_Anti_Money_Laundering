@@ -1,6 +1,6 @@
 # AML Detection — Model Results
 
-> Phase 1 complete · Phase 2 complete · Phase 3 in progress · GraphSAGE / BiLSTM / DistilBERT + Late-Fusion MLP + MLOps stack
+> Phase 1 complete · Phase 2 complete · Phase 3 deployment evidence in progress · GraphSAGE / BiLSTM / DistilBERT + Late-Fusion MLP + MLOps stack
 
 ---
 
@@ -463,3 +463,36 @@ The per-sample SHAP summary should be interpreted alongside the ablation results
 
 Plots: `reports/shap_force_plot.png`, `reports/shap_summary_plot.png`
 Raw values: `reports/shap_values.npy` (audit trail)
+
+---
+
+## Phase 3: CI/CD, CML, and Deployment Status
+
+Phase 3 productionized the AML scorer with GitHub Actions, container builds, Cloud Run deployment, and Hugging Face Spaces deployment. The model work is complete; the remaining grading-sensitive work is evidence capture: screenshots, live URLs, and short explanations must be attached in `PHASE3.md` and the main `README.md`.
+
+### Automation and Test Evidence
+
+| Area | Repo Evidence | Latest Status | Evidence Still Needed |
+|---|---|---|---|
+| Unit and integration tests | `tests/test_model.py`, `tests/test_serving.py`, `tests/test_integration.py` | Implemented | Screenshot of local or GitHub Actions pytest run |
+| CI workflow | `.github/workflows/ci.yml` | Implemented | Screenshot of green CI run |
+| Docker build workflow | `.github/workflows/docker-build.yml` | `aml-api`, `aml-hf`, and API smoke test passed; `aml-graphsage` failed once due to Docker Hub timeout | Screenshot of successful workflow; rerun `aml-graphsage` if required |
+| CML report | `.github/workflows/cml.yml`, `reports/cml_report.md`, `reports/figures/cml_auc_pr.png` | Implemented | Screenshot of CML PR comment with metrics/plot |
+| Pre-commit hooks | `.pre-commit-config.yaml` | Implemented | Screenshot of hook run |
+
+The `aml-graphsage` Docker failure shown in GitHub Actions was a registry/network failure during Buildx setup: `registry-1.docker.io/v2/: context deadline exceeded`. Because the other Docker jobs completed successfully in the same workflow, this is treated as a transient infrastructure issue unless it repeats after rerun.
+
+### Deployment Evidence
+
+| Platform | Repo Evidence | Latest Status | Evidence Still Needed |
+|---|---|---|---|
+| Cloud Run | `.github/workflows/deploy-cloudrun.yml`, `dockerfiles/Dockerfile`, `docs/screenshots/cloudrun_dashboard.png` | Latest run succeeded after build, push, deploy, and smoke-test | Live Cloud Run URL plus `/health` or `/predict` response screenshot |
+| Artifact Registry | `.github/workflows/deploy-cloudrun.yml` | Image push is part of the successful Cloud Run workflow | GCP Artifact Registry screenshot showing pushed image |
+| Hugging Face Spaces | `.github/workflows/deploy-huggingface.yml`, `deploy/huggingface/README.md`, `Dockerfile` | Workflow now pushes a clean Space repo without large-file history; README metadata fixed to satisfy HF `short_description` length limit | Successful HF Actions screenshot and live Space screenshot |
+| FastAPI serving | `src/multimodal_anti_money_laundering/serving/api.py`, `docs/api.md` | `/health`, `/predict`, and `/metrics` implemented | Screenshot or terminal output from deployed endpoint |
+
+The Hugging Face failure was caused by Space metadata validation. The original `short_description` in `deploy/huggingface/README.md` exceeded Hugging Face's 60-character limit, so it was shortened to `Multimodal AML risk scorer`. The deployment workflow also stages only the API files needed by the Space, preventing large historical report/data artifacts from being pushed to Hugging Face.
+
+### Demo and README Follow-up
+
+The final demo recording should be completed after the deployed endpoints are stable. The recommended recording flow is: show the top-level `README.md`, show `PHASE3.md`, open the successful GitHub Actions runs, open the deployed Cloud Run or Hugging Face endpoint, submit one sample AML transaction, and show the returned risk score. The recording link should be embedded near the top of the main `README.md`, while detailed screenshots and explanations should be recorded in `PHASE3.md`.
