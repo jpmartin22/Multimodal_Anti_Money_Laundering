@@ -23,8 +23,8 @@ jobs:
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
 
-          # Create a temporary branch without large files
-          git checkout -b hf-deploy
+          # Create an orphan branch so large-file history is not pushed
+          git checkout --orphan hf-deploy
 
           # Remove large files from this branch
           git rm -r --cached reports/drift/ 2>/dev/null || true
