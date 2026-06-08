@@ -150,7 +150,7 @@ def run_all_experiments(n: int = 300) -> list[dict]:
             mlflow.log_param("n_requests", n)
             mlflow.log_param("sla_target_ms", SLA_TARGET_MS)
 
-            metrics = run_requests(client, float(exp["threshold"]), n)
+            metrics = run_requests(client, float(str(exp["threshold"])), n)
 
             mlflow.log_metric("mean_latency_ms", metrics["mean_ms"])
             mlflow.log_metric("std_latency_ms", metrics["std_ms"])

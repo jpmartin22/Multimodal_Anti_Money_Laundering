@@ -11,6 +11,7 @@ repos:
       - id: mypy
         additional_dependencies: []
         args: [--ignore-missing-imports]
+        exclude: ^deploy/
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
