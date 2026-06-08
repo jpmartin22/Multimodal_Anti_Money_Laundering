@@ -71,3 +71,16 @@ jobs:
 
       - name: Run data quality gate
         run: python -m multimodal_anti_money_laundering.evaluation.data_gate
+
+      - name: Generate CML Report Matrix
+        run: python scripts/cml_report.py
+
+      - name: Post CML Metrics Comment to Pull Request
+        uses: iterative/setup-cml@v1
+        with:
+          version: 'latest'
+      - name: Publish Report Comment
+        env:
+          REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
+        run: |
+          cml comment create reports/cml_report.md
