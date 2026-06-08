@@ -133,7 +133,7 @@ Demo video: https://youtu.be/J4DRJv57-SM
   - Evidence:
     - [ ] screenshot of empty/cleaned GCP console
     - [ ] explanation
-  - Notes: Rajani's responsibility — to be completed after demo recording.
+
 
 ---
 
