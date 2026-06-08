@@ -44,5 +44,8 @@ RUN pip install --no-cache-dir -e .
 EXPOSE 7860
 EXPOSE 7860
 
-CMD ["uvicorn", "multimodal_anti_money_laundering.serving.api:app", \
-     "--host", "0.0.0.0", "--port", "7860"]
+CMD ["python", "app.py"]
+<<<<<<< Updated upstream
+
+=======
+>>>>>>> Stashed changes

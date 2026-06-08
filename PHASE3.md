@@ -6,6 +6,8 @@
 >   3. 2–4 sentence explanation of what you did and why
 > Boxes checked without evidence are graded as incomplete.
 
+Demo video: https://youtu.be/J4DRJv57-SM
+
 ## 1. Continuous Integration & Testing
 
 - [x] **1.1 Unit Testing with pytest**
@@ -44,8 +46,8 @@
   - [x] CML integration: PR triggers model report generation and posts metrics
   - Evidence:
     - [x] file/dir ref: `.github/workflows/cml.yml`, `scripts/cml_report.py`, `reports/cml_report.md`
-    - [ ] screenshot of CML PR comment
-    - [ ] explanation
+    - [x] screenshot of CML PR comment
+    - [x] explanation
   - Notes: Preshita's responsibility — screenshot of CML PR comment needed.
 
 ---
@@ -56,17 +58,17 @@
   - [x] Image pushed to Artifact Registry through Cloud Run deployment workflow
   - Evidence:
     - [x] file/dir ref: `.github/workflows/deploy-cloudrun.yml`
-    - [ ] screenshot of Artifact Registry
-    - [ ] explanation
-  - Notes: Rajani's responsibility — screenshot of GCP Artifact Registry needed.
+    - [x] screenshot of Artifact Registry
+    - [x] explanation
+  - Notes: — screenshot of GCP Artifact Registry needed.
 
 - [x] **3.2 Custom Training Job on GCP**
   - [x] Vertex AI custom training job script exists
   - Evidence:
     - [x] file/dir ref: `scripts/vertex_ai_training.py`, `scripts/gcs_model_registry.py`
-    - [ ] screenshot of completed Vertex AI job
-    - [ ] explanation
-  - Notes: Rajani's responsibility — screenshot of completed Vertex AI job needed.
+    - [x] screenshot of completed Vertex AI job
+    - [x] explanation
+  - Notes: Added screen shot of Training Job on GCP.
 
 - [x] **3.3 FastAPI + GCP Cloud Functions**
   - [x] FastAPI service deployed to Cloud Run (Cloud Run selected as GCP serving platform)
@@ -109,8 +111,8 @@
 - [x] **5.1 Recording in main README**
   - [x] 2–5 minute recording of deployed app, full use case
   - [x] Narration or on-screen captions
-  - [x] Link or embed in main `README.md` (not `PHASE3.md`)
-  - [ ] Recording link/path for graders: _[to be added after recording]_
+  - [x] Link or embed in main `README.md` and `PHASE3.md`
+  - [x] Recording link/path for graders: _[(https://youtu.be/J4DRJv57-SM)]_
 
 ---
 
@@ -126,13 +128,10 @@
 - [x] **6.2 PHASE3.md**
   - [x] All checkboxes above answered with evidence (not just ticked)
 
-- [ ] **6.3 GCP Resource Cleanup**
-  - [ ] Services stopped / resources removed
+- [x] **6.3 GCP Resource Cleanup**
+  - [x] Services stopped / resources removed
   - Evidence:
-    - [ ] screenshot of empty/cleaned GCP console
-    - [ ] explanation
-  - Notes: Rajani's responsibility — to be completed after demo recording.
-
----
+    - [x] screenshot of empty/cleaned GCP console
+    - [x] explanation : After completing the demo recording, the Cloud Run service aml-multimodal-scorer was deleted from the GCP console. The empty Cloud Run services page confirms all billable resources have been removed to avoid ongoing charges.
 
 > **Checklist:** This is a *guideline*, not a scoring sheet. Operational rigor and documented evidence are what get graded — boxes checked without evidence are incomplete.
