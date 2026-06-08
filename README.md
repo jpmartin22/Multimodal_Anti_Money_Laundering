@@ -1,6 +1,6 @@
 # Multimodal Anti-Money Laundering (AML) Detection
 
-> MLOps Class Project — Team of 4 · DePaul University · 2025
+> MLOps Class Project — Team of 4 · DePaul University · 2025 · Demo Video: https://youtu.be/J4DRJv57-SM
 
 ## Team
 
