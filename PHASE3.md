@@ -46,8 +46,8 @@ Demo video: https://youtu.be/J4DRJv57-SM
   - [x] CML integration: PR triggers model report generation and posts metrics
   - Evidence:
     - [x] file/dir ref: `.github/workflows/cml.yml`, `scripts/cml_report.py`, `reports/cml_report.md`
-    - [ ] screenshot of CML PR comment
-    - [ ] explanation
+    - [x] screenshot of CML PR comment
+    - [x] explanation
   - Notes: Preshita's responsibility — screenshot of CML PR comment needed.
 
 ---
@@ -58,15 +58,15 @@ Demo video: https://youtu.be/J4DRJv57-SM
   - [x] Image pushed to Artifact Registry through Cloud Run deployment workflow
   - Evidence:
     - [x] file/dir ref: `.github/workflows/deploy-cloudrun.yml`
-    - [ ] screenshot of Artifact Registry
-    - [ ] explanation
+    - [x] screenshot of Artifact Registry
+    - [x] explanation
   - Notes: — screenshot of GCP Artifact Registry needed.
 
 - [x] **3.2 Custom Training Job on GCP**
   - [x] Vertex AI custom training job script exists
   - Evidence:
     - [x] file/dir ref: `scripts/vertex_ai_training.py`, `scripts/gcs_model_registry.py`
-    - [ ] screenshot of completed Vertex AI job
+    - [x] screenshot of completed Vertex AI job
     - [x] explanation
   - Notes: Added screen shot of Training Job on GCP.
 
@@ -132,9 +132,6 @@ Demo video: https://youtu.be/J4DRJv57-SM
   - [x] Services stopped / resources removed
   - Evidence:
     - [x] screenshot of empty/cleaned GCP console
-    - [ ] explanation
-
-
----
+    - [x] explanation : clean up is done
 
 > **Checklist:** This is a *guideline*, not a scoring sheet. Operational rigor and documented evidence are what get graded — boxes checked without evidence are incomplete.
