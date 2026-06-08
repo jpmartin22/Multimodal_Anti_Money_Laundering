@@ -39,6 +39,7 @@ jobs:
           cp deploy/huggingface/README.md "${SPACE_DIR}/README.md"
           cp -R src "${SPACE_DIR}/src"
           cp .hfignore "${SPACE_DIR}/.hfignore"
+            cp app.py "${SPACE_DIR}/app.py"
 
           cd "${SPACE_DIR}"
           git init
