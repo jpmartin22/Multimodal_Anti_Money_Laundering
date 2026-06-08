@@ -48,7 +48,7 @@ Demo video: https://youtu.be/J4DRJv57-SM
     - [x] file/dir ref: `.github/workflows/cml.yml`, `scripts/cml_report.py`, `reports/cml_report.md`
     - [x] screenshot of CML PR comment
     - [x] explanation
-  - Notes: Preshita's responsibility — screenshot of CML PR comment needed.
+ 
 
 ---
 
