@@ -132,6 +132,6 @@ Demo video: https://youtu.be/J4DRJv57-SM
   - [x] Services stopped / resources removed
   - Evidence:
     - [x] screenshot of empty/cleaned GCP console
-    - [x] explanation : clean up is done
+    - [x] explanation : After completing the demo recording, the Cloud Run service aml-multimodal-scorer was deleted from the GCP console. The empty Cloud Run services page confirms all billable resources have been removed to avoid ongoing charges.
 
 > **Checklist:** This is a *guideline*, not a scoring sheet. Operational rigor and documented evidence are what get graded — boxes checked without evidence are incomplete.
