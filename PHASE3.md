@@ -60,15 +60,15 @@ Demo video: https://youtu.be/J4DRJv57-SM
     - [x] file/dir ref: `.github/workflows/deploy-cloudrun.yml`
     - [ ] screenshot of Artifact Registry
     - [ ] explanation
-  - Notes: Rajani's responsibility — screenshot of GCP Artifact Registry needed.
+  - Notes: — screenshot of GCP Artifact Registry needed.
 
 - [x] **3.2 Custom Training Job on GCP**
   - [x] Vertex AI custom training job script exists
   - Evidence:
     - [x] file/dir ref: `scripts/vertex_ai_training.py`, `scripts/gcs_model_registry.py`
     - [ ] screenshot of completed Vertex AI job
-    - [ ] explanation
-  - Notes: Rajani's responsibility — screenshot of completed Vertex AI job needed.
+    - [x] explanation
+  - Notes: Added screen shot of Training Job on GCP.
 
 - [x] **3.3 FastAPI + GCP Cloud Functions**
   - [x] FastAPI service deployed to Cloud Run (Cloud Run selected as GCP serving platform)
