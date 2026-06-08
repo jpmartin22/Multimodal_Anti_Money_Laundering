@@ -111,8 +111,8 @@ Demo video: https://youtu.be/J4DRJv57-SM
 - [x] **5.1 Recording in main README**
   - [x] 2–5 minute recording of deployed app, full use case
   - [x] Narration or on-screen captions
-  - [x] Link or embed in main `README.md` (not `PHASE3.md`)
-  - [ ] Recording link/path for graders: _[to be added after recording]_
+  - [x] Link or embed in main `README.md` and `PHASE3.md`
+  - [x] Recording link/path for graders: _[(https://youtu.be/J4DRJv57-SM)]_
 
 ---
 
@@ -128,10 +128,10 @@ Demo video: https://youtu.be/J4DRJv57-SM
 - [x] **6.2 PHASE3.md**
   - [x] All checkboxes above answered with evidence (not just ticked)
 
-- [ ] **6.3 GCP Resource Cleanup**
-  - [ ] Services stopped / resources removed
+- [x] **6.3 GCP Resource Cleanup**
+  - [x] Services stopped / resources removed
   - Evidence:
-    - [ ] screenshot of empty/cleaned GCP console
+    - [x] screenshot of empty/cleaned GCP console
     - [ ] explanation
 
 
