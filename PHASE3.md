@@ -6,6 +6,8 @@
 >   3. 2–4 sentence explanation of what you did and why
 > Boxes checked without evidence are graded as incomplete.
 
+Demo video: https://youtu.be/J4DRJv57-SM
+
 ## 1. Continuous Integration & Testing
 
 - [x] **1.1 Unit Testing with pytest**
