@@ -220,8 +220,7 @@ bash scripts/setup_gcp.sh
 
 # 2. Add the following to GitHub → Settings → Secrets and variables → Actions
 #    Secrets:
-#      GCP_WORKLOAD_IDENTITY_PROVIDER   (printed by setup_gcp.sh)
-#      GCP_SERVICE_ACCOUNT              (printed by setup_gcp.sh)
+#      GOOGLE_CREDENTIALS               (JSON key for the deploy service account)
 #    Variables:
 #      GCP_PROJECT_ID                   your GCP project ID
 #      GCP_REGION                       us-central1  (or your preferred region)
@@ -279,8 +278,7 @@ gcloud run services update aml-multimodal-scorer \
 
 | Secret / Variable | Required | Description |
 |---|---|---|
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Secret | Full WI provider resource name |
-| `GCP_SERVICE_ACCOUNT` | Secret | SA email for impersonation |
+| `GOOGLE_CREDENTIALS` | Secret | Service account JSON key used by GitHub Actions to authenticate/deploy |
 | `GCP_PROJECT_ID` | Variable | GCP project ID |
 | `GCP_REGION` | Variable | Deployment region |
 | `AR_REPO` | Variable | Artifact Registry repo name |
